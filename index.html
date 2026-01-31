@@ -6,66 +6,89 @@
   <title>Dashboard de Investimentos — BRL Base</title>
   <style>
     :root{
-      --bg:#0b0f14;
-      --card:#101826;
-      --card2:#0f1622;
-      --text:#e8eef7;
-      --muted:#9bb0c9;
-      --line:#1f2b3a;
+      /* Visual upgrade: contraste + tipografia + “fintech” */
+      --bg:#0a0f16;
+      --card:#0f1826;
+      --card2:#0c1421;
+      --text:#eef4ff;
+      --muted:#a9bdd8;
+      --line:rgba(255,255,255,.10);
 
-      --green:#22c55e;
-      --red:#ef4444;
-      --yellow:#f59e0b;
-      --blue:#60a5fa;
-      --pill:#0b1220;
+      --green:#2bd574;
+      --red:#ff5c6c;
+      --yellow:#f7b84b;
+      --blue:#67b0ff;
 
-      --shadow: 0 14px 40px rgba(0,0,0,.35);
+      --shadow: 0 18px 52px rgba(0,0,0,.45);
+      --shadow2: 0 16px 40px rgba(0,0,0,.35);
       --radius: 18px;
       --radius2: 14px;
+
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
 
     *{box-sizing:border-box}
     body{
-      margin:0; background:radial-gradient(1200px 700px at 20% 10%, rgba(96,165,250,.12), transparent 55%),
-                           radial-gradient(900px 600px at 90% 20%, rgba(34,197,94,.10), transparent 60%),
-                           radial-gradient(900px 600px at 30% 90%, rgba(239,68,68,.08), transparent 60%),
-                           var(--bg);
-      color:var(--text); font-family:var(--sans);
+      margin:0;
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(103,176,255,.14), transparent 55%),
+        radial-gradient(900px 600px at 90% 20%, rgba(43,213,116,.12), transparent 60%),
+        radial-gradient(900px 600px at 30% 90%, rgba(255,92,108,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+      font-size:14px; /* base 14px */
+      line-height:1.45;
     }
 
     header{
       padding:22px 18px 10px;
       max-width:1180px; margin:0 auto;
-      display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
+      display:flex; gap:14px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
     }
 
-    .title h1{margin:0; font-size:20px; letter-spacing:.2px}
-    .title p{margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.35}
+    .title h1{margin:0; font-size:22px; letter-spacing:.2px}
+    .title p{margin:8px 0 0; color:var(--muted); font-size:14px; line-height:1.4}
 
     .actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
     .btn{
-      border:1px solid rgba(255,255,255,.10);
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
       color:var(--text);
       padding:10px 12px;
       border-radius:12px;
       cursor:pointer;
-      box-shadow: 0 10px 20px rgba(0,0,0,.22);
-      font-size:13px;
+      box-shadow: 0 12px 26px rgba(0,0,0,.28);
+      font-size:13.5px;
+      font-weight:600;
+      letter-spacing:.1px;
+      transition: transform .08s ease, border-color .12s ease, background .12s ease;
+      user-select:none;
     }
-    .btn:hover{border-color:rgba(255,255,255,.18)}
+    .btn:hover{border-color:rgba(255,255,255,.20)}
+    .btn:active{transform: translateY(1px)}
     .btn.primary{
-      border:1px solid rgba(96,165,250,.35);
-      background:linear-gradient(180deg, rgba(96,165,250,.20), rgba(96,165,250,.08));
+      border:1px solid rgba(103,176,255,.45);
+      background:linear-gradient(180deg, rgba(103,176,255,.26), rgba(103,176,255,.10));
     }
     .btn.danger{
-      border:1px solid rgba(239,68,68,.35);
-      background:linear-gradient(180deg, rgba(239,68,68,.20), rgba(239,68,68,.08));
+      border:1px solid rgba(255,92,108,.45);
+      background:linear-gradient(180deg, rgba(255,92,108,.22), rgba(255,92,108,.09));
+    }
+    .btn.ghost{
+      background:transparent;
+      border:1px solid rgba(255,255,255,.14);
+    }
+    .btn.small{
+      padding:7px 10px;
+      font-size:12.5px;
+      border-radius:10px;
+      box-shadow:none;
     }
 
-    main{max-width:1180px; margin:0 auto; padding:10px 18px 26px;}
+    main{max-width:1180px; margin:0 auto; padding:10px 18px 28px;}
     .grid{
       display:grid;
       grid-template-columns: repeat(12, 1fr);
@@ -73,11 +96,11 @@
     }
 
     .card{
-      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      border:1px solid rgba(255,255,255,.08);
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+      border:1px solid rgba(255,255,255,.10);
       border-radius:var(--radius);
       box-shadow:var(--shadow);
-      padding:14px;
+      padding:16px;
       overflow:hidden;
     }
 
@@ -85,53 +108,65 @@
     @media (max-width: 980px){ .kpi{grid-column: span 6;} }
     @media (max-width: 520px){ .kpi{grid-column: span 12;} }
 
-    .kpi .label{color:var(--muted); font-size:12px}
-    .kpi .value{margin-top:8px; font-size:20px; font-weight:700; letter-spacing:.2px}
-    .kpi .sub{margin-top:6px; font-size:12px; color:var(--muted)}
+    .kpi .label{color:var(--muted); font-size:12.5px; font-weight:600}
+    .kpi .value{margin-top:10px; font-size:22px; font-weight:800; letter-spacing:.2px}
+    .kpi .sub{margin-top:8px; font-size:12.5px; color:var(--muted)}
+
     .pill{
-      display:inline-flex; align-items:center; gap:6px;
-      padding:6px 10px;
+      display:inline-flex; align-items:center; gap:8px;
+      padding:7px 11px;
       border-radius:999px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
       color:var(--muted);
-      font-size:12px;
+      font-size:12.5px;
     }
-    .pill strong{color:var(--text); font-family:var(--mono); font-weight:700}
+    .pill strong{color:var(--text); font-family:var(--mono); font-weight:800}
 
     .tableCard{grid-column: span 12; padding:0}
     .tableHeader{
-      padding:14px;
-      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
-      border-bottom:1px solid rgba(255,255,255,.06);
+      padding:14px 14px 12px;
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
     }
-    .tableHeader h2{margin:0; font-size:14px}
-    .tableHeader .meta{color:var(--muted); font-size:12px}
+    .tableHeader h2{margin:0; font-size:16px; font-weight:800; letter-spacing:.2px}
+    .tableHeader .meta{color:var(--muted); font-size:12.5px}
+
     .tableWrap{overflow:auto}
-    table{width:100%; border-collapse:collapse; min-width:980px}
+    table{width:100%; border-collapse:separate; border-spacing:0; min-width:1060px}
     th, td{
-      padding:10px 12px;
-      border-bottom:1px solid rgba(255,255,255,.05);
+      padding:12px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
       vertical-align:middle;
-      font-size:12.5px;
+      font-size:13px;
       white-space:nowrap;
     }
-    th{color:var(--muted); font-weight:600; text-align:left; background:rgba(255,255,255,.02)}
-    tr:hover td{background:rgba(255,255,255,.02)}
+    th{
+      color:rgba(255,255,255,.78);
+      font-weight:700;
+      text-align:left;
+      background:rgba(255,255,255,.03);
+      position:sticky;
+      top:0;
+      backdrop-filter: blur(8px);
+      z-index:1;
+    }
+    tr:hover td{background:rgba(255,255,255,.03)}
     .right{text-align:right}
     .muted{color:var(--muted)}
     .mono{font-family:var(--mono)}
-    .pos{color:var(--green); font-weight:700}
-    .neg{color:var(--red); font-weight:700}
-    .warn{color:var(--yellow); font-weight:700}
+    .pos{color:var(--green); font-weight:800}
+    .neg{color:var(--red); font-weight:800}
+    .warn{color:var(--yellow); font-weight:800}
+
     .tag{
       display:inline-flex; align-items:center;
-      padding:5px 9px;
+      padding:6px 10px;
       border-radius:999px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
-      color:var(--muted);
-      font-size:12px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      color:rgba(255,255,255,.80);
+      font-size:12.5px;
       gap:8px;
     }
     .dot{width:8px; height:8px; border-radius:999px; background:rgba(255,255,255,.25)}
@@ -139,47 +174,52 @@
     .dot.red{background:var(--red)}
     .dot.blue{background:var(--blue)}
     .dot.yellow{background:var(--yellow)}
-    .inlineInputs{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-    }
+
+    .inlineInputs{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
     input[type="number"], input[type="text"], input[type="date"]{
-      background:rgba(0,0,0,.25);
-      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.30);
+      border:1px solid rgba(255,255,255,.14);
       border-radius:12px;
-      padding:9px 10px;
+      padding:10px 11px;
       color:var(--text);
-      font-size:13px;
+      font-size:13.5px;
       outline:none;
-      width:160px;
+      width:180px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.12);
+      transition: border-color .12s ease, box-shadow .12s ease;
     }
-    input[type="text"]{width:220px}
+    input[type="text"]{width:240px}
     input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
-    .small{width:120px !important}
+    input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+    input:focus{
+      border-color: rgba(103,176,255,.55);
+      box-shadow: 0 0 0 3px rgba(103,176,255,.18);
+    }
 
     .footerNote{
       margin-top:12px;
       color:var(--muted);
-      font-size:12px;
-      line-height:1.4;
+      font-size:12.5px;
+      line-height:1.5;
     }
 
     .toast{
       position:fixed; bottom:18px; right:18px;
-      background:rgba(16,24,38,.92);
-      border:1px solid rgba(255,255,255,.12);
+      background:rgba(15,24,38,.94);
+      border:1px solid rgba(255,255,255,.14);
       border-radius:14px;
       padding:12px 14px;
-      box-shadow:var(--shadow);
+      box-shadow:var(--shadow2);
       color:var(--text);
       font-size:13px;
       display:none;
       max-width:360px;
+      z-index:50;
     }
     .toast.show{display:block}
 
     /* =========================
-       HISTÓRICO (NOVO)
+       HISTÓRICO (GERAL)
        ========================= */
     .historyCard{grid-column: span 12; padding:0}
     .historyGrid{
@@ -188,33 +228,186 @@
       gap:12px;
       padding:14px;
     }
-    @media (max-width: 980px){
-      .historyGrid{grid-template-columns: 1fr;}
-    }
+    @media (max-width: 980px){ .historyGrid{grid-template-columns: 1fr;} }
     .canvasWrap{
-      background:rgba(0,0,0,.22);
-      border:1px solid rgba(255,255,255,.08);
+      background:rgba(0,0,0,.28);
+      border:1px solid rgba(255,255,255,.10);
       border-radius:var(--radius2);
       padding:12px;
       overflow:hidden;
     }
-    canvas{width:100%; height:240px; display:block;}
+    canvas{width:100%; height:250px; display:block;}
+
     .miniTable{
       width:100%;
-      border-collapse:collapse;
-      background:rgba(0,0,0,.22);
-      border:1px solid rgba(255,255,255,.08);
+      border-collapse:separate;
+      border-spacing:0;
+      background:rgba(0,0,0,.28);
+      border:1px solid rgba(255,255,255,.10);
       border-radius:var(--radius2);
       overflow:hidden;
     }
     .miniTable th, .miniTable td{
-      padding:10px 12px;
-      border-bottom:1px solid rgba(255,255,255,.06);
-      font-size:12.5px;
+      padding:11px 12px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      font-size:13px;
       white-space:nowrap;
     }
-    .miniTable th{background:rgba(255,255,255,.02); color:var(--muted); text-align:left;}
+    .miniTable th{
+      background:rgba(255,255,255,.03);
+      color:rgba(255,255,255,.78);
+      text-align:left;
+      font-weight:700;
+    }
     .miniTable tr:last-child td{border-bottom:none;}
+
+    /* =========================
+       MODAL (EDIÇÃO INDIVIDUAL)
+       ========================= */
+    .modalOverlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.62);
+      display:none;
+      align-items:flex-end;
+      justify-content:flex-end;
+      z-index:60;
+    }
+    .modalOverlay.show{display:flex;}
+    .drawer{
+      width:min(520px, 100vw);
+      height:100%;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border-left:1px solid rgba(255,255,255,.14);
+      box-shadow: -20px 0 60px rgba(0,0,0,.55);
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .drawerHeader{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding-bottom:10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .drawerHeader h3{
+      margin:0;
+      font-size:16px;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+    .drawerHeader .sub{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.35;
+    }
+    .drawerBody{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .formRow{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .formRow.one{grid-template-columns:1fr;}
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .field label{
+      font-size:12.5px;
+      color:rgba(255,255,255,.78);
+      font-weight:700;
+    }
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:4px;
+      line-height:1.35;
+    }
+    textarea{
+      background:rgba(0,0,0,.30);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:12px;
+      padding:10px 11px;
+      color:var(--text);
+      font-size:13.5px;
+      outline:none;
+      min-height:84px;
+      resize:vertical;
+    }
+    textarea:focus{
+      border-color: rgba(103,176,255,.55);
+      box-shadow: 0 0 0 3px rgba(103,176,255,.18);
+    }
+    .drawerFooter{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      padding-top:12px;
+      border-top:1px solid rgba(255,255,255,.10);
+    }
+
+    /* =========================
+       HISTÓRICO POR ATIVO
+       ========================= */
+    .assetHistoryCard{grid-column: span 12; padding:0; display:none;}
+    .assetHistoryCard.show{display:block;}
+    .segmented{
+      display:inline-flex;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.04);
+      border-radius:999px;
+      overflow:hidden;
+    }
+    .segmented button{
+      border:none;
+      background:transparent;
+      color:rgba(255,255,255,.82);
+      padding:8px 10px;
+      font-size:12.5px;
+      cursor:pointer;
+      font-weight:800;
+    }
+    .segmented button.active{
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+    }
+    .assetHistoryGrid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:12px;
+      padding:14px;
+    }
+    @media (max-width: 980px){ .assetHistoryGrid{grid-template-columns:1fr;} }
+
+    .clickableRow{cursor:pointer;}
+    .rowActions{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+      align-items:center;
+    }
+    .kbd{
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(255,255,255,.82);
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:10px;
+      padding:6px 8px;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
   </style>
 </head>
 <body>
@@ -230,7 +423,7 @@
   <div class="actions">
     <span class="pill">Última atualização: <strong id="lastUpdated">—</strong></span>
     <button class="btn primary" id="refreshBtn">Atualizar agora</button>
-    <button class="btn" id="editBtn">Editar quantidades</button>
+    <button class="btn" id="editBtn" title="Modo legado (edição em sequência)">Editar quantidades</button>
     <button class="btn danger" id="resetBtn">Resetar dados</button>
   </div>
 </header>
@@ -269,6 +462,10 @@
         <div>
           <h2>Carteira — visão consolidada</h2>
           <div class="meta" id="metaInfo">—</div>
+          <div class="meta" style="margin-top:6px;">
+            <span class="kbd">Dica</span>
+            Clique em uma linha para abrir o <b>Histórico do ativo</b> • ou use <b>Editar</b> para ajustar o investimento.
+          </div>
         </div>
         <div class="inlineInputs">
           <input type="text" id="filterInput" placeholder="Filtrar (ex: VALE3, BTC, Nubank)" />
@@ -291,32 +488,37 @@
               <th class="right">G/P (BRL)</th>
               <th class="right">24h</th>
               <th>Status</th>
+              <th class="right">Ações</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
 
-      <div class="tableHeader" style="border-top:1px solid rgba(255,255,255,.06); border-bottom:none;">
+      <div class="tableHeader" style="border-top:1px solid rgba(255,255,255,.08); border-bottom:none;">
         <div class="footerNote">
           <b>Notas rápidas</b><br/>
           1) “Preço atual” é automático para BTC (CoinGecko) e ações B3 (brapi). Fundos/renda fixa ficam manual (você atualiza saldo).<br/>
-          2) O painel atualiza sozinho enquanto estiver aberto. Se você quiser atualização diária mesmo com o navegador fechado, isso exige hospedar com um job/cron (posso te passar um blueprint depois).<br/>
+          2) O painel atualiza sozinho enquanto estiver aberto. Se você quiser atualização diária mesmo com o navegador fechado, isso exige hospedar com um job/cron.<br/>
           3) Isso é uma ferramenta de acompanhamento, não é recomendação de investimento.
         </div>
       </div>
     </div>
 
     <!-- =========================
-         HISTÓRICO (NOVO)
+         HISTÓRICO GERAL (PORTFÓLIO)
          ========================= -->
-    <div class="card historyCard">
+    <div class="card historyCard" id="portfolioHistoryCard">
       <div class="tableHeader">
         <div>
           <h2>Histórico — evolução da carteira</h2>
           <div class="meta">Salve snapshots mensais (ex.: desde 2021) e acompanhe crescimento com gráfico e variações.</div>
         </div>
         <div class="inlineInputs">
+          <div class="segmented" aria-label="Modo de histórico">
+            <button class="active" id="modePortfolioBtn" type="button">Carteira</button>
+            <button id="modeAssetBtn" type="button">Ativo</button>
+          </div>
           <input type="date" id="snapDate" />
           <input type="text" id="snapNote" placeholder="Nota (opcional)" />
           <button class="btn primary" id="saveSnapshotBtn">Salvar snapshot</button>
@@ -350,10 +552,115 @@
       </div>
     </div>
 
+    <!-- =========================
+         HISTÓRICO POR ATIVO (NOVO)
+         ========================= -->
+    <div class="card assetHistoryCard" id="assetHistoryCard">
+      <div class="tableHeader">
+        <div>
+          <h2 id="assetHistoryTitle">Histórico — ativo</h2>
+          <div class="meta" id="assetHistoryMeta">Selecione um ativo na tabela para visualizar e editar o histórico.</div>
+        </div>
+        <div class="inlineInputs">
+          <div class="segmented" aria-label="Modo de histórico">
+            <button id="modePortfolioBtn2" type="button">Carteira</button>
+            <button class="active" id="modeAssetBtn2" type="button">Ativo</button>
+          </div>
+          <button class="btn" id="assetBackBtn">Voltar para carteira</button>
+          <input type="date" id="assetSnapDate" />
+          <input type="number" id="assetSnapValue" placeholder="Total do ativo (moeda)" />
+          <input type="text" id="assetSnapNote" placeholder="Nota (opcional)" />
+          <button class="btn primary" id="saveAssetSnapshotBtn">Salvar no ativo</button>
+          <button class="btn" id="manageAssetHistoryBtn">Gerenciar</button>
+          <button class="btn danger" id="deleteLastAssetSnapshotBtn">Apagar último</button>
+        </div>
+      </div>
+
+      <div class="assetHistoryGrid">
+        <div class="canvasWrap">
+          <canvas id="assetHistoryChart" width="1000" height="320"></canvas>
+          <div class="footerNote" id="assetHistorySummary">—</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <table class="miniTable">
+            <thead>
+              <tr>
+                <th>Mês/Data</th>
+                <th class="right">Total (moeda)</th>
+                <th class="right">Δ</th>
+                <th class="right">Δ (%)</th>
+              </tr>
+            </thead>
+            <tbody id="assetHistoryTbody"></tbody>
+          </table>
+          <div class="footerNote muted">
+            Dica: o histórico por ativo é salvo separadamente. Útil para acompanhar “aportes” e evolução por investimento.
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 
 <div class="toast" id="toast"></div>
+
+<!-- =========================
+     Drawer / Modal de edição (NOVO)
+     ========================= -->
+<div class="modalOverlay" id="assetEditOverlay" role="dialog" aria-modal="true" aria-label="Editar investimento">
+  <div class="drawer" role="document">
+    <div class="drawerHeader">
+      <div>
+        <h3 id="editTitle">Editar investimento</h3>
+        <div class="sub" id="editSub">—</div>
+      </div>
+      <button class="btn ghost small" id="closeEditBtn" title="Fechar">Fechar</button>
+    </div>
+
+    <div class="drawerBody">
+      <div class="formRow">
+        <div class="field">
+          <label id="editQtyLabel" for="editQty">Quantidade</label>
+          <input type="number" id="editQty" step="any" />
+          <div class="hint" id="editQtyHint">—</div>
+        </div>
+
+        <div class="field">
+          <label for="editAvgCost">Preço médio (opcional)</label>
+          <input type="number" id="editAvgCost" step="any" placeholder="Ex.: 24.50" />
+          <div class="hint">Se vazio, o painel ignora o cálculo de G/P.</div>
+        </div>
+      </div>
+
+      <div class="formRow" id="manualPriceRow" style="display:none;">
+        <div class="field">
+          <label for="editManualPrice">Preço manual (por cota/unidade)</label>
+          <input type="number" id="editManualPrice" step="any" />
+          <div class="hint">Usado apenas para ativos com preço manual.</div>
+        </div>
+        <div class="field">
+          <label for="editNotesShort">Resumo</label>
+          <input type="text" id="editNotesShort" placeholder="Ex.: Aporte mensal / Longo prazo" />
+          <div class="hint">Opcional. Você também pode detalhar abaixo.</div>
+        </div>
+      </div>
+
+      <div class="formRow one">
+        <div class="field">
+          <label for="editNotes">Notas</label>
+          <textarea id="editNotes" placeholder="Escreva detalhes do investimento (opcional)"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawerFooter">
+      <button class="btn" id="cancelEditBtn">Cancelar</button>
+      <button class="btn primary" id="saveEditBtn">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* =========================
@@ -366,22 +673,9 @@
 const STORAGE_KEY = "inv_dashboard_v1";
 
 /**
- * Estrutura de ativo:
- * {
- *  id, name, category, account,
- *  currency: "BRL"|"USD"|"EUR",
- *  mode: "stock_b3"|"crypto"|"cash"|"manual_balance"|"fund_manual",
- *  symbol: (para stock_b3 ex: "VALE3"),
- *  coingeckoId: (para crypto ex: "bitcoin"),
- *  qty: number (ou balance),
- *  avgCost: number (preço médio na moeda do ativo) [opcional],
- *  notes: string
- * }
- *
- * HISTÓRICO (novo):
- * state.history = [
- *   { date:"2021-12-31", totalBRL: 12345.67, note:"fim de ano" }
- * ]
+ * HISTÓRICO:
+ * - Portfólio (já existia): state.history = [{date,totalBRL,note}]
+ * - Por ativo (novo): state.assetHistory = { [assetId]: [{date,totalNative,note}] }
  */
 
 const DEFAULT_DATA = {
@@ -390,43 +684,35 @@ const DEFAULT_DATA = {
     autoRefreshMinutes: 30
   },
   assets: [
-    // Crypto
     { id:"btc", name:"Bitcoin", category:"Cripto", account:"BINANCE", currency:"USD", mode:"crypto", coingeckoId:"bitcoin", qty:0.0, avgCost:null, notes:"Qtd em BTC; preço em USD" },
-
-    // Cash USD (Binance)
     { id:"usd_cash", name:"Dólar em conta", category:"Caixa", account:"BINANCE", currency:"USD", mode:"cash", qty:0.0, avgCost:1.0, notes:"Saldo em USD" },
 
-    // Tesouro Direto (manual balance)
     { id:"td_selic_2026", name:"Tesouro Selic 2026", category:"Renda fixa", account:"C6", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
     { id:"td_selic_2027", name:"Tesouro Selic 2027", category:"Renda fixa", account:"C6", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
     { id:"td_selic_2029", name:"Tesouro Selic 2029", category:"Renda fixa", account:"C6", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
 
-    // Caixinhas / Cofrinhos (manual balance)
     { id:"nubank_caixinha", name:"Caixinha Nubank (120% CDI)", category:"Renda fixa", account:"NUBANK", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
     { id:"nu_reserva", name:"Nu Reserva Imediata", category:"Fundo", account:"NUBANK", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
     { id:"mp_cofrinho", name:"Cofrinho Mercado Pago (120% CDI)", category:"Renda fixa", account:"Mercado Pago", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
 
-    // Ações B3 (brapi)
     { id:"ggbr4", name:"Gerdau", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"GGBR4", qty:0.0, avgCost:null, notes:"Qtd de ações" },
     { id:"vale3", name:"Vale", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"VALE3", qty:0.0, avgCost:null, notes:"Qtd de ações" },
     { id:"cmig4", name:"Cemig", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"CMIG4", qty:0.0, avgCost:null, notes:"Qtd de ações" },
     { id:"tasa4", name:"Taurus", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"TASA4", qty:0.0, avgCost:null, notes:"Qtd de ações" },
 
-    // Fundo em EUR (manual price / manual balance)
     { id:"wise_ishares_world", name:"iShares World Equity Index Fund", category:"Fundo", account:"WISE", currency:"EUR", mode:"fund_manual", qty:0.0, avgCost:null, notes:"Qtd (cotas/unidades) + preço manual em EUR (você define)" }
   ],
   manualPrices: {
     "wise_ishares_world": { price: 0.0 }
   },
-
-  // HISTÓRICO (NOVO)
-  history: []
+  history: [],
+  assetHistory: {} // NOVO
 };
 
 let state = loadState();
 let market = {
   fx: { USDBRL: null, EURBRL: null },
-  quotes: {}, // id -> { price, changePct24h, currency }
+  quotes: {},
   lastUpdated: null,
   errors: []
 };
@@ -446,7 +732,8 @@ function loadState(){
       ...parsed,
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
       manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
-      history: Array.isArray(parsed.history) ? parsed.history : []
+      history: Array.isArray(parsed.history) ? parsed.history : [],
+      assetHistory: (parsed.assetHistory && typeof parsed.assetHistory==="object") ? parsed.assetHistory : {}
     };
   }catch{
     return structuredClone(DEFAULT_DATA);
@@ -477,11 +764,23 @@ function toast(msg){
    Fetchers
    ================ */
 async function fetchFX(){
-  const fx1 = fetch("https://api.frankfurter.dev/latest?from=EUR&to=BRL").then(r=>r.json());
-  const fx2 = fetch("https://api.frankfurter.dev/latest?from=USD&to=BRL").then(r=>r.json());
-  const [a,b] = await Promise.all([fx1, fx2]);
-  market.fx.EURBRL = a?.rates?.BRL ?? null;
-  market.fx.USDBRL = b?.rates?.BRL ?? null;
+  // Frankfurter (ECB) — domínio correto
+  const url = "https://api.frankfurter.app/latest?from=EUR&to=BRL,USD";
+  const r = await fetch(url, { cache: "no-store" });
+  if(!r.ok) throw new Error("Frankfurter falhou ("+r.status+")");
+  const j = await r.json();
+
+  const eurbrl = Number(j?.rates?.BRL);
+  const eurusd = Number(j?.rates?.USD);
+
+  // EUR/BRL direto
+  market.fx.EURBRL = Number.isFinite(eurbrl) ? eurbrl : null;
+
+  // Converte via EUR: USDBRL = (BRL por EUR) / (USD por EUR)
+  market.fx.USDBRL =
+    (Number.isFinite(eurbrl) && Number.isFinite(eurusd) && eurusd !== 0)
+      ? (eurbrl / eurusd)
+      : null;
 }
 
 async function fetchCrypto(){
@@ -595,10 +894,9 @@ function computeTotalBRL(){
 }
 
 /* =========================
-   HISTÓRICO (NOVO)
+   HISTÓRICO (GERAL)
    ========================= */
 function normalizeDate(yyyy_mm_dd){
-  // mantém formato YYYY-MM-DD
   if(!yyyy_mm_dd) return null;
   const s = String(yyyy_mm_dd).trim();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
@@ -622,7 +920,6 @@ function upsertSnapshot(date, totalBRL, note=""){
   saveState();
   return true;
 }
-
 function deleteLastSnapshot(){
   if(state.history.length===0) return;
   sortHistory();
@@ -630,6 +927,170 @@ function deleteLastSnapshot(){
   saveState();
 }
 
+/* =========================
+   HISTÓRICO POR ATIVO (NOVO)
+   ========================= */
+function getAssetHistoryList(assetId){
+  if(!state.assetHistory) state.assetHistory = {};
+  const arr = state.assetHistory[assetId];
+  return Array.isArray(arr) ? arr : [];
+}
+function setAssetHistoryList(assetId, list){
+  if(!state.assetHistory) state.assetHistory = {};
+  state.assetHistory[assetId] = list;
+}
+function sortAssetHistory(assetId){
+  const h = getAssetHistoryList(assetId);
+  h.sort((x,y)=> (x.date||"").localeCompare(y.date||""));
+  setAssetHistoryList(assetId, h);
+}
+function upsertAssetSnapshot(assetId, date, totalNative, note=""){
+  const d = normalizeDate(date);
+  if(!d) { toast("Data inválida."); return false; }
+  if(!Number.isFinite(totalNative)) { toast("Valor inválido."); return false; }
+
+  const h = getAssetHistoryList(assetId);
+  const idx = h.findIndex(x=>x.date===d);
+  const snap = { date:d, totalNative:Number(totalNative), note:String(note||"").trim() };
+
+  if(idx>=0) h[idx] = snap;
+  else h.push(snap);
+
+  h.sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  setAssetHistoryList(assetId, h);
+  saveState();
+  return true;
+}
+function deleteLastAssetSnapshot(assetId){
+  const h = getAssetHistoryList(assetId);
+  if(h.length===0) return;
+  h.sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  h.pop();
+  setAssetHistoryList(assetId, h);
+  saveState();
+}
+function manageAssetHistory(assetId){
+  sortAssetHistory(assetId);
+  const h = getAssetHistoryList(assetId);
+  const current = h.map(x=>`${x.date} | ${x.totalNative} | ${x.note||""}`).join("\n") || "(vazio)";
+  const msg =
+`Cole/edite aqui seu histórico do ativo (um por linha) no formato:
+YYYY-MM-DD | 12345.67 | nota opcional
+
+ATENÇÃO: use ponto no decimal (.)
+(O valor é na moeda do ativo.)`;
+
+  const edited = prompt(msg + "\n\nConteúdo atual:\n" + current, current);
+  if(edited===null) return;
+
+  const lines = String(edited).split("\n").map(l=>l.trim()).filter(Boolean);
+  const newHist = [];
+  for(const line of lines){
+    if(line==="(vazio)") continue;
+    const parts = line.split("|").map(p=>p.trim());
+    const d = normalizeDate(parts[0]);
+    const v = Number((parts[1]||"").replace(",", "."));
+    const note = parts.slice(2).join(" | ").trim();
+    if(!d || !Number.isFinite(v)) continue;
+    newHist.push({ date:d, totalNative:v, note });
+  }
+  newHist.sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  setAssetHistoryList(assetId, newHist);
+  saveState();
+  renderAssetHistory(assetId);
+  toast("Histórico do ativo atualizado.");
+}
+
+/* =========================
+   Gráficos (canvas) — geral e por ativo
+   ========================= */
+function setupCanvasHiDpi(canvas){
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 800;
+  const cssH = canvas.clientHeight || 240;
+  canvas.width = Math.floor(cssW * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return { ctx, cssW, cssH };
+}
+
+function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyText}){
+  const { ctx, cssW, cssH } = setupCanvasHiDpi(canvas);
+
+  ctx.clearRect(0,0,cssW,cssH);
+
+  // fundo sutil
+  ctx.fillStyle = "rgba(255,255,255,.02)";
+  ctx.fillRect(0,0,cssW,cssH);
+
+  if(!points || points.length < 2){
+    ctx.fillStyle = "rgba(169,189,216,.92)";
+    ctx.font = "13px " + getComputedStyle(document.documentElement).getPropertyValue("--sans");
+    ctx.fillText(emptyText || "Adicione ao menos 2 pontos para ver o gráfico.", 14, 28);
+    return;
+  }
+
+  const pad = 14;
+  const W = cssW - pad*2;
+  const H = cssH - pad*2;
+
+  const values = points.map(p=>p.v);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = (maxV - minV) || 1;
+
+  // grade
+  ctx.strokeStyle = "rgba(255,255,255,.06)";
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const y = pad + (H*(i/4));
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(pad+W, y);
+    ctx.stroke();
+  }
+
+  // cor por tendência
+  const up = values[values.length-1] >= values[0];
+  ctx.strokeStyle = up ? (colorUp || "rgba(43,213,116,.92)") : (colorDown || "rgba(255,92,108,.92)");
+  ctx.lineWidth = 2.4;
+
+  // linha
+  ctx.beginPath();
+  points.forEach((p, i)=>{
+    const x = pad + (W*(i/(points.length-1)));
+    const y = pad + (H*(1 - ((p.v - minV)/range)));
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // pontos
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  points.forEach((p, i)=>{
+    const x = pad + (W*(i/(points.length-1)));
+    const y = pad + (H*(1 - ((p.v - minV)/range)));
+    ctx.beginPath();
+    ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // labels
+  ctx.fillStyle = "rgba(169,189,216,.95)";
+  ctx.font = "12px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
+  ctx.fillText(points[0].label, pad, cssH - 8);
+  const endLabel = points[points.length-1].label;
+  const endW = ctx.measureText(endLabel).width;
+  ctx.fillText(endLabel, pad + W - endW, cssH - 8);
+
+  ctx.fillText(formatValue(maxV), pad, 14);
+  ctx.fillText(formatValue(minV), pad, cssH - 24);
+}
+
+/* =========================
+   Render histórico geral
+   ========================= */
 function renderHistory(){
   sortHistory();
   const h = state.history;
@@ -638,7 +1099,12 @@ function renderHistory(){
 
   if(h.length===0){
     el("historySummary").innerHTML = `<span class="muted">Nenhum snapshot ainda. Use “Salvar snapshot” no fim do mês (ou adicione histórico antigo em “Gerenciar”).</span>`;
-    drawHistoryChart([]);
+    drawLineChart({
+      canvas: el("historyChart"),
+      points: [],
+      formatValue: (v)=>fmtMoney(v,"BRL"),
+      emptyText: "Adicione ao menos 2 snapshots para ver o gráfico."
+    });
     return;
   }
 
@@ -655,7 +1121,6 @@ function renderHistory(){
     const prev = i>0 ? h[i-1] : null;
     const delta = prev ? (cur.totalBRL - prev.totalBRL) : null;
     const pct = (prev && prev.totalBRL>0) ? (delta/prev.totalBRL)*100 : null;
-
     const cls = delta===null ? "muted" : (delta>=0 ? "pos" : "neg");
 
     const tr = document.createElement("tr");
@@ -673,97 +1138,112 @@ function renderHistory(){
     tbody.appendChild(tr);
   }
 
-  drawHistoryChart(h);
-}
-
-function drawHistoryChart(history){
-  const canvas = el("historyChart");
-  const ctx = canvas.getContext("2d");
-
-  // Ajusta para ficar nítido
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = canvas.clientWidth || 800;
-  const cssH = canvas.clientHeight || 240;
-  canvas.width = Math.floor(cssW * dpr);
-  canvas.height = Math.floor(cssH * dpr);
-  ctx.scale(dpr, dpr);
-
-  // Limpa
-  ctx.clearRect(0,0,cssW,cssH);
-
-  // Fundo leve
-  ctx.fillStyle = "rgba(255,255,255,.02)";
-  ctx.fillRect(0,0,cssW,cssH);
-
-  if(!history || history.length<2){
-    ctx.fillStyle = "rgba(155,176,201,.8)";
-    ctx.font = "13px " + getComputedStyle(document.documentElement).getPropertyValue("--sans");
-    ctx.fillText("Adicione ao menos 2 snapshots para ver o gráfico.", 14, 28);
-    return;
-  }
-
-  const pad = 14;
-  const W = cssW - pad*2;
-  const H = cssH - pad*2;
-
-  const values = history.map(x=>x.totalBRL);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const range = (maxV - minV) || 1;
-
-  // grade
-  ctx.strokeStyle = "rgba(255,255,255,.06)";
-  ctx.lineWidth = 1;
-  for(let i=0;i<=4;i++){
-    const y = pad + (H*(i/4));
-    ctx.beginPath();
-    ctx.moveTo(pad, y);
-    ctx.lineTo(pad+W, y);
-    ctx.stroke();
-  }
-
-  // linha
-  const first = values[0];
-  const last = values[values.length-1];
-  const up = last >= first;
-
-  ctx.strokeStyle = up ? "rgba(34,197,94,.9)" : "rgba(239,68,68,.9)";
-  ctx.lineWidth = 2.3;
-  ctx.beginPath();
-
-  history.forEach((p, i)=>{
-    const x = pad + (W*(i/(history.length-1)));
-    const y = pad + (H*(1 - ((p.totalBRL - minV)/range)));
-    if(i===0) ctx.moveTo(x,y);
-    else ctx.lineTo(x,y);
+  const points = h.map(x=>({ label:x.date, v:x.totalBRL }));
+  drawLineChart({
+    canvas: el("historyChart"),
+    points,
+    formatValue: (v)=>fmtMoney(v,"BRL"),
+    emptyText: "Adicione ao menos 2 snapshots para ver o gráfico."
   });
-  ctx.stroke();
-
-  // pontos
-  ctx.fillStyle = "rgba(255,255,255,.85)";
-  history.forEach((p, i)=>{
-    const x = pad + (W*(i/(history.length-1)));
-    const y = pad + (H*(1 - ((p.totalBRL - minV)/range)));
-    ctx.beginPath();
-    ctx.arc(x,y,3,0,Math.PI*2);
-    ctx.fill();
-  });
-
-  // labels mínimos
-  ctx.fillStyle = "rgba(155,176,201,.9)";
-  ctx.font = "12px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
-  ctx.fillText(history[0].date, pad, cssH - 8);
-  const endLabel = history[history.length-1].date;
-  const endW = ctx.measureText(endLabel).width;
-  ctx.fillText(endLabel, pad + W - endW, cssH - 8);
-
-  // min/max
-  ctx.fillText(fmtMoney(maxV,"BRL"), pad, 14);
-  ctx.fillText(fmtMoney(minV,"BRL"), pad, cssH - 24);
 }
 
 /* =========================
-   Render principal
+   Render histórico por ativo (NOVO)
+   ========================= */
+let selectedAssetId = null;
+
+function renderAssetHistory(assetId){
+  const asset = state.assets.find(a=>a.id===assetId);
+  if(!asset){
+    el("assetHistoryTitle").textContent = "Histórico — ativo";
+    el("assetHistoryMeta").textContent = "Selecione um ativo na tabela para visualizar e editar o histórico.";
+    el("assetHistorySummary").innerHTML = `<span class="muted">Nenhum ativo selecionado.</span>`;
+    el("assetHistoryTbody").innerHTML = "";
+    drawLineChart({
+      canvas: el("assetHistoryChart"),
+      points: [],
+      formatValue: (v)=>fmtMoney(v,"BRL"),
+      emptyText: "Selecione um ativo para ver o gráfico."
+    });
+    return;
+  }
+
+  selectedAssetId = assetId;
+
+  // UI: alterna para modo ativo
+  showHistoryMode("asset");
+
+  el("assetHistoryTitle").textContent = `Histórico — ${asset.name}${asset.symbol?` (${asset.symbol})`:``}`;
+  el("assetHistoryMeta").textContent = `Moeda do ativo: ${asset.currency} • Conta: ${asset.account} • Categoria: ${asset.category}`;
+
+  // Preenche data default
+  const todayISO = new Date().toISOString().slice(0,10);
+  el("assetSnapDate").value = el("assetSnapDate").value || todayISO;
+
+  // Sugestão: valor atual do ativo em moeda (nativo)
+  const c = computeRow(asset);
+  if(c.valueNative !== null && (el("assetSnapValue").value==="" || el("assetSnapValue").value===null)){
+    // não sobrescreve se usuário já digitou
+    // (deixa “hint” implícita ao clicar em “Salvar”)
+  }
+
+  sortAssetHistory(assetId);
+  const h = getAssetHistoryList(assetId);
+  const tbody = el("assetHistoryTbody");
+  tbody.innerHTML = "";
+
+  if(h.length===0){
+    el("assetHistorySummary").innerHTML = `<span class="muted">Nenhum registro para este ativo. Use “Salvar no ativo” para criar.</span>`;
+    drawLineChart({
+      canvas: el("assetHistoryChart"),
+      points: [],
+      formatValue: (v)=>fmtMoney(v, asset.currency),
+      emptyText: "Adicione ao menos 2 registros para ver o gráfico."
+    });
+    return;
+  }
+
+  const first = h[0].totalNative;
+  const last = h[h.length-1].totalNative;
+  const growth = (first>0) ? ((last-first)/first)*100 : null;
+
+  el("assetHistorySummary").innerHTML =
+    `Registros: <b class="mono">${h.length}</b> • Primeiro: <b class="mono">${h[0].date}</b> • Último: <b class="mono">${h[h.length-1].date}</b>
+     <br/>Variação no período: <b class="mono ${growth>=0?'pos':'neg'}">${fmtMoney(last-first, asset.currency)}</b> ${growth===null?'':`(<b class="mono ${growth>=0?'pos':'neg'}">${fmtPct(growth)}</b>)`}`;
+
+  for(let i=0;i<h.length;i++){
+    const cur = h[i];
+    const prev = i>0 ? h[i-1] : null;
+    const delta = prev ? (cur.totalNative - prev.totalNative) : null;
+    const pct = (prev && prev.totalNative>0) ? (delta/prev.totalNative)*100 : null;
+    const cls = delta===null ? "muted" : (delta>=0 ? "pos" : "neg");
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div class="mono">${cur.date}</div>
+          ${cur.note?`<div class="muted" style="font-size:12px;">${escapeHtml(cur.note)}</div>`:""}
+        </div>
+      </td>
+      <td class="right mono">${fmtMoney(cur.totalNative, asset.currency)}</td>
+      <td class="right mono ${cls}">${delta===null?"—":fmtMoney(delta, asset.currency)}</td>
+      <td class="right mono ${cls}">${pct===null?"—":fmtPct(pct)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  const points = h.map(x=>({ label:x.date, v:x.totalNative }));
+  drawLineChart({
+    canvas: el("assetHistoryChart"),
+    points,
+    formatValue: (v)=>fmtMoney(v, asset.currency),
+    emptyText: "Adicione ao menos 2 registros para ver o gráfico."
+  });
+}
+
+/* =========================
+   Render principal (tabela)
    ========================= */
 function render(){
   el("fxUSDBRL").textContent = market.fx.USDBRL ? fmtNum(market.fx.USDBRL, 4) : "—";
@@ -796,6 +1276,8 @@ function render(){
     }
 
     const tr = document.createElement("tr");
+    tr.classList.add("clickableRow");
+    tr.dataset.assetId = a.id;
 
     const statusDot = (a.mode==="crypto" || a.mode==="stock_b3") ? "green" : (a.mode==="fund_manual" ? "yellow" : "blue");
     const statusText = (a.mode==="crypto" || a.mode==="stock_b3") ? "Automático" : (a.mode==="fund_manual" ? "Preço manual" : "Saldo manual");
@@ -820,11 +1302,11 @@ function render(){
 
     tr.innerHTML = `
       <td>
-        <div style="display:flex;flex-direction:column;gap:3px;">
-          <div style="font-weight:700;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="font-weight:900;">
             ${escapeHtml(a.name)} ${a.symbol?`<span class="muted mono">(${escapeHtml(a.symbol)})</span>`:""}
           </div>
-          <div class="muted" style="font-size:12px;">
+          <div class="muted" style="font-size:12.5px;">
             <span class="mono">${escapeHtml(a.currency)}</span>
             ${a.notes ? ` • ${escapeHtml(a.notes)}` : ""}
           </div>
@@ -834,15 +1316,21 @@ function render(){
       <td class="muted">${escapeHtml(a.account)}</td>
       <td class="right">
         <span class="muted">${qtyLabel}:</span>
-        <span class="mono">${qtyDisplay}</span>
+        <span class="mono" style="font-weight:900;">${qtyDisplay}</span>
       </td>
       <td class="right mono">${priceDisplay}</td>
       <td class="right mono">${valueNativeDisplay}</td>
-      <td class="right mono">${valueBRLDisplay}</td>
+      <td class="right mono" style="font-weight:900;">${valueBRLDisplay}</td>
       <td class="right mono ${pnlClass}">${pnlDisplay}</td>
       <td class="right mono ${chgClass}">${chgDisplay}</td>
       <td>
         <span class="tag"><span class="dot ${statusDot}"></span>${statusText}</span>
+      </td>
+      <td class="right">
+        <div class="rowActions">
+          <button class="btn small" data-action="history" data-asset="${escapeHtml(a.id)}" title="Abrir histórico do ativo">Histórico</button>
+          <button class="btn small primary" data-action="edit" data-asset="${escapeHtml(a.id)}" title="Editar este investimento">Editar</button>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
@@ -868,12 +1356,117 @@ function render(){
 
   el("lastUpdated").textContent = market.lastUpdated ? new Date(market.lastUpdated).toLocaleString("pt-BR") : "—";
 
-  // HISTÓRICO
+  // histórico geral
   renderHistory();
+
+  // se já estiver em modo ativo e houver seleção, re-render do ativo
+  if(selectedAssetId && isAssetMode()){
+    renderAssetHistory(selectedAssetId);
+  }
 }
 
 /* =========================
-   Edit modal simples (prompt)
+   Edição individual por ativo (NOVO)
+   ========================= */
+let editingAssetId = null;
+
+function openEditAsset(assetId){
+  const asset = state.assets.find(a=>a.id===assetId);
+  if(!asset){ toast("Ativo não encontrado."); return; }
+
+  editingAssetId = assetId;
+
+  const overlay = el("assetEditOverlay");
+  overlay.classList.add("show");
+
+  el("editTitle").textContent = `Editar — ${asset.name}${asset.symbol?` (${asset.symbol})`:``}`;
+  el("editSub").textContent = `${asset.category} • ${asset.account} • Moeda: ${asset.currency}`;
+
+  const isBalance = asset.mode==="manual_balance";
+  el("editQtyLabel").textContent = isBalance ? "Saldo (valor total)" : "Quantidade";
+  el("editQtyHint").textContent = isBalance
+    ? "Digite o saldo atual (na moeda do ativo)."
+    : "Digite a quantidade de unidades/cotas.";
+  el("editQty").value = String(asset.qty ?? 0);
+
+  // avgCost só faz sentido quando não for manual_balance
+  el("editAvgCost").disabled = isBalance;
+  el("editAvgCost").value = (asset.avgCost===null || asset.avgCost===undefined) ? "" : String(asset.avgCost);
+
+  // preço manual só quando for fund_manual
+  const manualRow = el("manualPriceRow");
+  if(asset.mode==="fund_manual"){
+    manualRow.style.display = "";
+    el("editManualPrice").value = String(state.manualPrices?.[asset.id]?.price ?? 0);
+  }else{
+    manualRow.style.display = "none";
+    el("editManualPrice").value = "";
+  }
+
+  // notas
+  el("editNotesShort").value = "";
+  el("editNotes").value = String(asset.notes ?? "");
+}
+
+function closeEditAsset(){
+  editingAssetId = null;
+  el("assetEditOverlay").classList.remove("show");
+}
+
+function saveEditAsset(){
+  if(!editingAssetId) return;
+  const asset = state.assets.find(a=>a.id===editingAssetId);
+  if(!asset){ toast("Ativo não encontrado."); return; }
+
+  const qty = Number(String(el("editQty").value||"").replace(",", "."));
+  if(!Number.isFinite(qty)){
+    toast("Quantidade/saldo inválido.");
+    return;
+  }
+
+  // aplica qty
+  asset.qty = qty;
+
+  // avgCost
+  if(asset.mode!=="manual_balance"){
+    const rawAvg = String(el("editAvgCost").value||"").trim();
+    if(rawAvg===""){
+      asset.avgCost = null;
+    }else{
+      const avg = Number(rawAvg.replace(",", "."));
+      asset.avgCost = Number.isFinite(avg) ? avg : null;
+    }
+  }else{
+    asset.avgCost = null;
+  }
+
+  // manual price
+  if(asset.mode==="fund_manual"){
+    const rawP = String(el("editManualPrice").value||"").trim();
+    const p = Number(rawP.replace(",", "."));
+    if(!Number.isFinite(p)){
+      toast("Preço manual inválido.");
+      return;
+    }
+    state.manualPrices[asset.id] = { price: p };
+  }
+
+  // notes
+  const short = String(el("editNotesShort").value||"").trim();
+  const notes = String(el("editNotes").value||"").trim();
+  asset.notes = notes || asset.notes || "";
+  if(short && !asset.notes.includes(short)){
+    asset.notes = asset.notes ? (asset.notes + " • " + short) : short;
+  }
+
+  saveState();
+  render();
+  toast("Investimento atualizado.");
+  closeEditAsset();
+}
+
+/* =========================
+   Edit modal legado (mantido)
    ========================= */
 async function editQuantities(){
   for(const a of state.assets){
@@ -900,17 +1493,12 @@ async function editQuantities(){
     }
   }
   saveState();
-
-  /* ✅ CORREÇÃO: após editar/adicionar valores, atualizar automaticamente câmbio/cotações
-     para recalcular patrimônio/ganhos no topo. */
-  toast("Atualizando…");
-  await refreshAll();
-
+  render();
   toast("Quantidades/saldos atualizados.");
 }
 
 /* =========================
-   Gerenciar histórico (NOVO)
+   Gerenciar histórico geral
    ========================= */
 function manageHistory(){
   sortHistory();
@@ -947,7 +1535,7 @@ ATENÇÃO: use ponto no decimal (.)`;
 }
 
 /* =========================
-   Import/Export JSON
+   Import/Export JSON (mantido)
    ========================= */
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
@@ -975,7 +1563,8 @@ function importJSON(){
         ...parsed,
         settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
         manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
-        history: Array.isArray(parsed.history) ? parsed.history : []
+        history: Array.isArray(parsed.history) ? parsed.history : [],
+        assetHistory: (parsed.assetHistory && typeof parsed.assetHistory==="object") ? parsed.assetHistory : {}
       };
       saveState();
       render();
@@ -993,6 +1582,12 @@ function importJSON(){
 async function refreshAll(){
   market.errors = [];
   try{ await fetchFX(); }catch(e){ market.errors.push("FX indisponível"); }
+
+  // ✅ COLOQUE AQUI (logo após o fetchFX)
+  if(market.fx.USDBRL === null || market.fx.EURBRL === null){
+    market.errors.push("Câmbio indisponível");
+  }
+
   try{ await fetchCrypto(); }catch(e){ market.errors.push("BTC indisponível"); }
   try{ await fetchB3Quotes(); }catch(e){ market.errors.push("B3 indisponível"); }
 
@@ -1007,6 +1602,31 @@ function escapeHtml(s){
   return String(s ?? "").replace(/[&<>"']/g, (m)=>({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
   }[m]));
+}
+
+/* =========================
+   Alternância: Histórico Carteira vs Ativo (UI clara)
+   ========================= */
+function isAssetMode(){
+  return el("assetHistoryCard").classList.contains("show");
+}
+function showHistoryMode(mode){
+  const portfolioCard = el("portfolioHistoryCard");
+  const assetCard = el("assetHistoryCard");
+  const p1 = el("modePortfolioBtn"), a1 = el("modeAssetBtn");
+  const p2 = el("modePortfolioBtn2"), a2 = el("modeAssetBtn2");
+
+  if(mode==="asset"){
+    portfolioCard.style.display = "none";
+    assetCard.classList.add("show");
+    p1.classList.remove("active"); a1.classList.add("active");
+    p2.classList.remove("active"); a2.classList.add("active");
+  }else{
+    portfolioCard.style.display = "";
+    assetCard.classList.remove("show");
+    p1.classList.add("active"); a1.classList.remove("active");
+    p2.classList.add("active"); a2.classList.remove("active");
+  }
 }
 
 /* =========================
@@ -1031,7 +1651,7 @@ el("resetBtn").addEventListener("click", ()=>{
 });
 el("filterInput").addEventListener("input", render);
 
-// HISTÓRICO (NOVO)
+// Histórico geral
 const todayISO = new Date().toISOString().slice(0,10);
 el("snapDate").value = todayISO;
 
@@ -1046,9 +1666,7 @@ el("saveSnapshotBtn").addEventListener("click", ()=>{
     renderHistory();
   }
 });
-
 el("manageHistoryBtn").addEventListener("click", manageHistory);
-
 el("deleteLastSnapshotBtn").addEventListener("click", ()=>{
   if(state.history.length===0){ toast("Não há snapshots."); return; }
   const ok = confirm("Apagar o último snapshot? Isso não tem como desfazer.");
@@ -1058,13 +1676,113 @@ el("deleteLastSnapshotBtn").addEventListener("click", ()=>{
   toast("Último snapshot apagado.");
 });
 
+// Toggle histórico
+el("modePortfolioBtn").addEventListener("click", ()=>showHistoryMode("portfolio"));
+el("modePortfolioBtn2").addEventListener("click", ()=>showHistoryMode("portfolio"));
+el("modeAssetBtn").addEventListener("click", ()=>{
+  if(!selectedAssetId){
+    toast("Selecione um ativo na tabela.");
+    return;
+  }
+  showHistoryMode("asset");
+  renderAssetHistory(selectedAssetId);
+});
+el("modeAssetBtn2").addEventListener("click", ()=>{
+  if(!selectedAssetId){
+    toast("Selecione um ativo na tabela.");
+    return;
+  }
+  showHistoryMode("asset");
+  renderAssetHistory(selectedAssetId);
+});
+el("assetBackBtn").addEventListener("click", ()=>showHistoryMode("portfolio"));
+
+// Histórico por ativo
+el("assetSnapDate").value = todayISO;
+
+el("saveAssetSnapshotBtn").addEventListener("click", ()=>{
+  if(!selectedAssetId){ toast("Selecione um ativo primeiro."); return; }
+  const asset = state.assets.find(a=>a.id===selectedAssetId);
+  if(!asset){ toast("Ativo não encontrado."); return; }
+
+  const date = el("assetSnapDate").value || todayISO;
+  const note = el("assetSnapNote").value || "";
+  const rawVal = String(el("assetSnapValue").value||"").trim();
+
+  let val = Number(rawVal.replace(",", "."));
+  if(!rawVal){
+    // se usuário não preencheu, usa valor atual calculado (nativo)
+    const c = computeRow(asset);
+    if(c.valueNative===null){
+      toast("Não foi possível sugerir o valor atual. Preencha manualmente.");
+      return;
+    }
+    val = Number(c.valueNative);
+  }
+  if(!Number.isFinite(val)){ toast("Valor inválido."); return; }
+
+  const ok = upsertAssetSnapshot(selectedAssetId, date, val, note);
+  if(ok){
+    toast("Registro salvo no ativo.");
+    el("assetSnapNote").value = "";
+    el("assetSnapValue").value = "";
+    renderAssetHistory(selectedAssetId);
+  }
+});
+el("manageAssetHistoryBtn").addEventListener("click", ()=>{
+  if(!selectedAssetId){ toast("Selecione um ativo primeiro."); return; }
+  manageAssetHistory(selectedAssetId);
+});
+el("deleteLastAssetSnapshotBtn").addEventListener("click", ()=>{
+  if(!selectedAssetId){ toast("Selecione um ativo primeiro."); return; }
+  const h = getAssetHistoryList(selectedAssetId);
+  if(h.length===0){ toast("Não há registros nesse ativo."); return; }
+  const ok = confirm("Apagar o último registro deste ativo? Isso não tem como desfazer.");
+  if(!ok) return;
+  deleteLastAssetSnapshot(selectedAssetId);
+  renderAssetHistory(selectedAssetId);
+  toast("Último registro apagado.");
+});
+
+// Modal edição individual
+el("closeEditBtn").addEventListener("click", closeEditAsset);
+el("cancelEditBtn").addEventListener("click", closeEditAsset);
+el("saveEditBtn").addEventListener("click", saveEditAsset);
+el("assetEditOverlay").addEventListener("click", (e)=>{
+  if(e.target === el("assetEditOverlay")) closeEditAsset();
+});
+document.addEventListener("keydown", (e)=>{
+  if(e.key==="Escape" && el("assetEditOverlay").classList.contains("show")) closeEditAsset();
+});
+
+// Delegação de cliques na tabela (Ações + linha)
+el("tbody").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button[data-action]");
+  if(btn){
+    e.stopPropagation();
+    const assetId = btn.getAttribute("data-asset");
+    const action = btn.getAttribute("data-action");
+    if(action==="edit") openEditAsset(assetId);
+    if(action==="history"){
+      selectedAssetId = assetId;
+      renderAssetHistory(assetId);
+    }
+    return;
+  }
+
+  const row = e.target.closest("tr[data-asset-id]");
+  if(row){
+    const assetId = row.getAttribute("data-asset-id");
+    selectedAssetId = assetId;
+    renderAssetHistory(assetId);
+  }
+});
+
 /* =========================
    Boot
    ========================= */
 render();
 refreshAll();
-
-// Auto-refresh enquanto estiver aberto
 setInterval(refreshAll, Math.max(5, Number(state.settings.autoRefreshMinutes||30)) * 60 * 1000);
 </script>
 </body>
