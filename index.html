@@ -142,7 +142,7 @@
     .inlineInputs{
       display:flex; gap:10px; align-items:center; flex-wrap:wrap;
     }
-    input[type="number"], input[type="text"]{
+    input[type="number"], input[type="text"], input[type="date"]{
       background:rgba(0,0,0,.25);
       border:1px solid rgba(255,255,255,.10);
       border-radius:12px;
@@ -177,6 +177,44 @@
       max-width:360px;
     }
     .toast.show{display:block}
+
+    /* =========================
+       HISTÓRICO (NOVO)
+       ========================= */
+    .historyCard{grid-column: span 12; padding:0}
+    .historyGrid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:12px;
+      padding:14px;
+    }
+    @media (max-width: 980px){
+      .historyGrid{grid-template-columns: 1fr;}
+    }
+    .canvasWrap{
+      background:rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius2);
+      padding:12px;
+      overflow:hidden;
+    }
+    canvas{width:100%; height:240px; display:block;}
+    .miniTable{
+      width:100%;
+      border-collapse:collapse;
+      background:rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius2);
+      overflow:hidden;
+    }
+    .miniTable th, .miniTable td{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      font-size:12.5px;
+      white-space:nowrap;
+    }
+    .miniTable th{background:rgba(255,255,255,.02); color:var(--muted); text-align:left;}
+    .miniTable tr:last-child td{border-bottom:none;}
   </style>
 </head>
 <body>
@@ -268,6 +306,50 @@
         </div>
       </div>
     </div>
+
+    <!-- =========================
+         HISTÓRICO (NOVO)
+         ========================= -->
+    <div class="card historyCard">
+      <div class="tableHeader">
+        <div>
+          <h2>Histórico — evolução da carteira</h2>
+          <div class="meta">Salve snapshots mensais (ex.: desde 2021) e acompanhe crescimento com gráfico e variações.</div>
+        </div>
+        <div class="inlineInputs">
+          <input type="date" id="snapDate" />
+          <input type="text" id="snapNote" placeholder="Nota (opcional)" />
+          <button class="btn primary" id="saveSnapshotBtn">Salvar snapshot</button>
+          <button class="btn" id="manageHistoryBtn">Gerenciar</button>
+          <button class="btn danger" id="deleteLastSnapshotBtn">Apagar último</button>
+        </div>
+      </div>
+
+      <div class="historyGrid">
+        <div class="canvasWrap">
+          <canvas id="historyChart" width="1000" height="320"></canvas>
+          <div class="footerNote" id="historySummary">—</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <table class="miniTable">
+            <thead>
+              <tr>
+                <th>Mês/Data</th>
+                <th class="right">Total (BRL)</th>
+                <th class="right">Δ (R$)</th>
+                <th class="right">Δ (%)</th>
+              </tr>
+            </thead>
+            <tbody id="historyTbody"></tbody>
+          </table>
+          <div class="footerNote muted">
+            Dica: faça um snapshot no fim de cada mês. Para histórico antigo (2021/2022…), você pode adicionar valores manualmente no “Gerenciar”.
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -295,6 +377,11 @@ const STORAGE_KEY = "inv_dashboard_v1";
  *  avgCost: number (preço médio na moeda do ativo) [opcional],
  *  notes: string
  * }
+ *
+ * HISTÓRICO (novo):
+ * state.history = [
+ *   { date:"2021-12-31", totalBRL: 12345.67, note:"fim de ano" }
+ * ]
  */
 
 const DEFAULT_DATA = {
@@ -329,9 +416,11 @@ const DEFAULT_DATA = {
     { id:"wise_ishares_world", name:"iShares World Equity Index Fund", category:"Fundo", account:"WISE", currency:"EUR", mode:"fund_manual", qty:0.0, avgCost:null, notes:"Qtd (cotas/unidades) + preço manual em EUR (você define)" }
   ],
   manualPrices: {
-    // Para fundos manuais (EUR)
-    "wise_ishares_world": { price: 0.0 } // preço por cota (EUR) — você edita
-  }
+    "wise_ishares_world": { price: 0.0 }
+  },
+
+  // HISTÓRICO (NOVO)
+  history: []
 };
 
 let state = loadState();
@@ -352,12 +441,12 @@ function loadState(){
   if(!raw) return structuredClone(DEFAULT_DATA);
   try{
     const parsed = JSON.parse(raw);
-    // merge light
     return {
       ...structuredClone(DEFAULT_DATA),
       ...parsed,
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
-      manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) }
+      manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
+      history: Array.isArray(parsed.history) ? parsed.history : []
     };
   }catch{
     return structuredClone(DEFAULT_DATA);
@@ -388,21 +477,14 @@ function toast(msg){
    Fetchers
    ================ */
 async function fetchFX(){
-  // Frankfurter base EUR. Para EURBRL: from=EUR to=BRL.
-  // Para USDBRL: from=USD to=BRL (Frankfurter converte via base).
-  // Docs: https://frankfurter.dev  (ECB reference)
   const fx1 = fetch("https://api.frankfurter.dev/latest?from=EUR&to=BRL").then(r=>r.json());
   const fx2 = fetch("https://api.frankfurter.dev/latest?from=USD&to=BRL").then(r=>r.json());
   const [a,b] = await Promise.all([fx1, fx2]);
-  const EURBRL = a?.rates?.BRL ?? null;
-  const USDBRL = b?.rates?.BRL ?? null;
-  market.fx.EURBRL = EURBRL;
-  market.fx.USDBRL = USDBRL;
+  market.fx.EURBRL = a?.rates?.BRL ?? null;
+  market.fx.USDBRL = b?.rates?.BRL ?? null;
 }
 
 async function fetchCrypto(){
-  // CoinGecko free endpoint geralmente funciona sem chave:
-  // https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true
   const ids = state.assets.filter(x=>x.mode==="crypto").map(x=>x.coingeckoId).filter(Boolean);
   if(ids.length===0) return;
 
@@ -424,36 +506,30 @@ async function fetchCrypto(){
 }
 
 async function fetchB3Quotes(){
-  // brapi.dev endpoint de quote (sem autenticação pode ter limite).
-  // Exemplo: https://brapi.dev/api/quote/VALE3
   const syms = state.assets.filter(x=>x.mode==="stock_b3").map(x=>x.symbol).filter(Boolean);
   if(syms.length===0) return;
 
-  // Buscando em lote: /quote/{symbols}?symbols=... também existe, mas o mais simples aqui é serializar
-  // para reduzir risco de falha por lote e manter fácil.
-  const tasks = syms.map(sym => fetch(`https://brapi.dev/api/quote/${encodeURIComponent(sym)}`).then(r=>r.json()).then(j=>({sym,j})));
+  const tasks = syms.map(sym =>
+    fetch(`https://brapi.dev/api/quote/${encodeURIComponent(sym)}`)
+      .then(r=>r.json())
+      .then(j=>({sym,j}))
+  );
+
   const res = await Promise.allSettled(tasks);
 
   res.forEach((item, idx)=>{
     const sym = syms[idx];
     if(item.status!=="fulfilled") return;
-
-    const j = item.value.j;
-    const q = j?.results?.[0];
+    const q = item.value.j?.results?.[0];
     if(!q) return;
 
-    // Campos comuns: regularMarketPrice, regularMarketChangePercent
     const price = q.regularMarketPrice ?? null;
     const chg = q.regularMarketChangePercent ?? null;
 
     const asset = state.assets.find(a=>a.mode==="stock_b3" && a.symbol===sym);
     if(!asset) return;
 
-    market.quotes[asset.id] = {
-      price,
-      changePct24h: chg, // mudança do dia, serve como “24h aprox”
-      currency: "BRL"
-    };
+    market.quotes[asset.id] = { price, changePct24h: chg, currency: "BRL" };
   });
 }
 
@@ -468,39 +544,31 @@ function getFXToBRL(currency){
    Cálculos por ativo
    ========================= */
 function computeRow(asset){
-  // Preço atual:
   let price = null;
   let change = null;
+
   if(asset.mode==="crypto" || asset.mode==="stock_b3"){
     price = market.quotes[asset.id]?.price ?? null;
     change = market.quotes[asset.id]?.changePct24h ?? null;
   }else if(asset.mode==="fund_manual"){
     price = state.manualPrices?.[asset.id]?.price ?? null;
-    change = null;
   }else if(asset.mode==="cash"){
-    price = 1.0; // 1 USD por unidade (saldo)
-    change = null;
+    price = 1.0;
   }else if(asset.mode==="manual_balance"){
-    price = 1.0; // saldo já é valor total na moeda
-    change = null;
+    price = 1.0;
   }
 
-  // Valor na moeda do ativo:
   let valueNative = null;
   if(asset.mode==="manual_balance"){
-    valueNative = Number(asset.qty || 0); // qty = saldo total
+    valueNative = Number(asset.qty || 0);
   }else{
     const q = Number(asset.qty || 0);
     valueNative = (price===null ? null : q*price);
   }
 
-  // Valor BRL:
   const fx = getFXToBRL(asset.currency);
   const valueBRL = (valueNative===null || fx===null) ? null : valueNative*fx;
 
-  // PnL estimado:
-  // - Se avgCost existe e modo não é manual_balance (porque ali já é saldo total)
-  // - Para cash (USD) avgCost=1 => PnL ~ 0 em USD; em BRL muda pelo câmbio, mas aqui mantemos simples.
   let pnlBRL = null;
   if(asset.avgCost !== null && asset.avgCost !== undefined && asset.avgCost !== "" && asset.mode!=="manual_balance"){
     const q = Number(asset.qty || 0);
@@ -515,14 +583,192 @@ function computeRow(asset){
 }
 
 /* =========================
-   Render
+   Total atual (para snapshots)
+   ========================= */
+function computeTotalBRL(){
+  let total = 0;
+  for(const a of state.assets){
+    const c = computeRow(a);
+    if(c.valueBRL !== null) total += c.valueBRL;
+  }
+  return total;
+}
+
+/* =========================
+   HISTÓRICO (NOVO)
+   ========================= */
+function normalizeDate(yyyy_mm_dd){
+  // mantém formato YYYY-MM-DD
+  if(!yyyy_mm_dd) return null;
+  const s = String(yyyy_mm_dd).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  return s;
+}
+function sortHistory(){
+  state.history.sort((x,y)=> (x.date||"").localeCompare(y.date||""));
+}
+function upsertSnapshot(date, totalBRL, note=""){
+  const d = normalizeDate(date);
+  if(!d) { toast("Data inválida."); return false; }
+  if(!Number.isFinite(totalBRL)) { toast("Valor inválido."); return false; }
+
+  const idx = state.history.findIndex(h=>h.date===d);
+  const snap = { date:d, totalBRL:Number(totalBRL), note:String(note||"").trim() };
+
+  if(idx>=0) state.history[idx] = snap;
+  else state.history.push(snap);
+
+  sortHistory();
+  saveState();
+  return true;
+}
+
+function deleteLastSnapshot(){
+  if(state.history.length===0) return;
+  sortHistory();
+  state.history.pop();
+  saveState();
+}
+
+function renderHistory(){
+  sortHistory();
+  const h = state.history;
+  const tbody = el("historyTbody");
+  tbody.innerHTML = "";
+
+  if(h.length===0){
+    el("historySummary").innerHTML = `<span class="muted">Nenhum snapshot ainda. Use “Salvar snapshot” no fim do mês (ou adicione histórico antigo em “Gerenciar”).</span>`;
+    drawHistoryChart([]);
+    return;
+  }
+
+  let first = h[0].totalBRL;
+  let last = h[h.length-1].totalBRL;
+  const growth = (first>0) ? ((last-first)/first)*100 : null;
+
+  el("historySummary").innerHTML =
+    `Registros: <b class="mono">${h.length}</b> • Primeiro: <b class="mono">${h[0].date}</b> • Último: <b class="mono">${h[h.length-1].date}</b>
+     <br/>Crescimento no período: <b class="mono ${growth>=0?'pos':'neg'}">${fmtMoney(last-first,'BRL')}</b> ${growth===null?'':`(<b class="mono ${growth>=0?'pos':'neg'}">${fmtPct(growth)}</b>)`}`;
+
+  for(let i=0;i<h.length;i++){
+    const cur = h[i];
+    const prev = i>0 ? h[i-1] : null;
+    const delta = prev ? (cur.totalBRL - prev.totalBRL) : null;
+    const pct = (prev && prev.totalBRL>0) ? (delta/prev.totalBRL)*100 : null;
+
+    const cls = delta===null ? "muted" : (delta>=0 ? "pos" : "neg");
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div class="mono">${cur.date}</div>
+          ${cur.note?`<div class="muted" style="font-size:12px;">${escapeHtml(cur.note)}</div>`:""}
+        </div>
+      </td>
+      <td class="right mono">${fmtMoney(cur.totalBRL,'BRL')}</td>
+      <td class="right mono ${cls}">${delta===null?"—":fmtMoney(delta,'BRL')}</td>
+      <td class="right mono ${cls}">${pct===null?"—":fmtPct(pct)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  drawHistoryChart(h);
+}
+
+function drawHistoryChart(history){
+  const canvas = el("historyChart");
+  const ctx = canvas.getContext("2d");
+
+  // Ajusta para ficar nítido
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 800;
+  const cssH = canvas.clientHeight || 240;
+  canvas.width = Math.floor(cssW * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+  ctx.scale(dpr, dpr);
+
+  // Limpa
+  ctx.clearRect(0,0,cssW,cssH);
+
+  // Fundo leve
+  ctx.fillStyle = "rgba(255,255,255,.02)";
+  ctx.fillRect(0,0,cssW,cssH);
+
+  if(!history || history.length<2){
+    ctx.fillStyle = "rgba(155,176,201,.8)";
+    ctx.font = "13px " + getComputedStyle(document.documentElement).getPropertyValue("--sans");
+    ctx.fillText("Adicione ao menos 2 snapshots para ver o gráfico.", 14, 28);
+    return;
+  }
+
+  const pad = 14;
+  const W = cssW - pad*2;
+  const H = cssH - pad*2;
+
+  const values = history.map(x=>x.totalBRL);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = (maxV - minV) || 1;
+
+  // grade
+  ctx.strokeStyle = "rgba(255,255,255,.06)";
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const y = pad + (H*(i/4));
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(pad+W, y);
+    ctx.stroke();
+  }
+
+  // linha
+  const first = values[0];
+  const last = values[values.length-1];
+  const up = last >= first;
+
+  ctx.strokeStyle = up ? "rgba(34,197,94,.9)" : "rgba(239,68,68,.9)";
+  ctx.lineWidth = 2.3;
+  ctx.beginPath();
+
+  history.forEach((p, i)=>{
+    const x = pad + (W*(i/(history.length-1)));
+    const y = pad + (H*(1 - ((p.totalBRL - minV)/range)));
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // pontos
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  history.forEach((p, i)=>{
+    const x = pad + (W*(i/(history.length-1)));
+    const y = pad + (H*(1 - ((p.totalBRL - minV)/range)));
+    ctx.beginPath();
+    ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // labels mínimos
+  ctx.fillStyle = "rgba(155,176,201,.9)";
+  ctx.font = "12px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
+  ctx.fillText(history[0].date, pad, cssH - 8);
+  const endLabel = history[history.length-1].date;
+  const endW = ctx.measureText(endLabel).width;
+  ctx.fillText(endLabel, pad + W - endW, cssH - 8);
+
+  // min/max
+  ctx.fillText(fmtMoney(maxV,"BRL"), pad, 14);
+  ctx.fillText(fmtMoney(minV,"BRL"), pad, cssH - 24);
+}
+
+/* =========================
+   Render principal
    ========================= */
 function render(){
-  // FX
   el("fxUSDBRL").textContent = market.fx.USDBRL ? fmtNum(market.fx.USDBRL, 4) : "—";
   el("fxEURBRL").textContent = market.fx.EURBRL ? fmtNum(market.fx.EURBRL, 4) : "—";
 
-  // Tabela
   const filter = (el("filterInput").value || "").trim().toLowerCase();
   const tbody = el("tbody");
   tbody.innerHTML = "";
@@ -544,7 +790,6 @@ function render(){
     if(c.valueBRL !== null) totalBRL += c.valueBRL;
     if(c.pnlBRL !== null) totalPnL += c.pnlBRL;
 
-    // 24h (aprox): usa changePct24h aplicado ao valor BRL
     if(c.change !== null && c.valueBRL !== null){
       total24h += c.valueBRL * (c.change/100);
       total24hBase += c.valueBRL;
@@ -603,7 +848,6 @@ function render(){
     tbody.appendChild(tr);
   });
 
-  // KPIs
   el("kpiTotalBRL").textContent = fmtMoney(totalBRL, "BRL");
 
   const pnlEl = el("kpiPnL");
@@ -618,29 +862,28 @@ function render(){
   el("kpiTotalSub").textContent =
     `Ativos: ${state.assets.length} • Base: BRL • Auto-refresh: ${state.settings.autoRefreshMinutes} min`;
 
-  // Meta
   el("metaInfo").textContent =
     market.errors.length ? `Avisos: ${market.errors.join(" | ")}` :
     `Fontes: FX Frankfurter • BTC CoinGecko • B3 brapi.dev`;
 
-  // Last updated
   el("lastUpdated").textContent = market.lastUpdated ? new Date(market.lastUpdated).toLocaleString("pt-BR") : "—";
+
+  // HISTÓRICO
+  renderHistory();
 }
 
 /* =========================
    Edit modal simples (prompt)
    ========================= */
 async function editQuantities(){
-  // fluxo rápido: passa por cada ativo e pede qty e avgCost (opcional) + preços manuais
   for(const a of state.assets){
     const label = (a.mode==="manual_balance") ? "Saldo (valor total)" : "Quantidade";
     const v = prompt(`${a.name} (${a.account})\n${label} em ${a.currency}:`, String(a.qty ?? 0));
-    if(v===null) return; // cancel
+    if(v===null) return;
     const num = Number(v.replace(",", "."));
     if(!Number.isFinite(num)) { toast("Valor inválido. Mantive o anterior."); continue; }
     a.qty = num;
 
-    // preço médio opcional (para calcular ganho/perda simples)
     if(a.mode!=="manual_balance"){
       const ac = prompt(`${a.name}\nPreço médio (opcional) em ${a.currency}.\nDeixe vazio para ignorar PnL.`, (a.avgCost ?? "")==="null" ? "" : String(a.avgCost ?? ""));
       if(ac===null) return;
@@ -649,19 +892,53 @@ async function editQuantities(){
       if(a.avgCost !== null && !Number.isFinite(a.avgCost)) a.avgCost = null;
     }
 
-    // fundos manuais: pedir preço por cota
     if(a.mode==="fund_manual"){
       const p = prompt(`${a.name}\nPreço por cota (manual) em EUR:`, String(state.manualPrices[a.id]?.price ?? 0));
       if(p===null) return;
       const pn = Number(String(p).replace(",", "."));
-      if(Number.isFinite(pn)) {
-        state.manualPrices[a.id] = { price: pn };
-      }
+      if(Number.isFinite(pn)) state.manualPrices[a.id] = { price: pn };
     }
   }
   saveState();
   render();
   toast("Quantidades/saldos atualizados.");
+}
+
+/* =========================
+   Gerenciar histórico (NOVO)
+   ========================= */
+function manageHistory(){
+  sortHistory();
+  const current = state.history.map(h=>`${h.date} | ${h.totalBRL} | ${h.note||""}`).join("\n") || "(vazio)";
+  const msg =
+`Cole/edite aqui sua lista de snapshots (um por linha) no formato:
+YYYY-MM-DD | 12345.67 | nota opcional
+
+Exemplo:
+2021-12-31 | 3500.00 | início
+2022-12-31 | 12000.00 | fim do ano
+
+ATENÇÃO: use ponto no decimal (.)`;
+
+  const edited = prompt(msg + "\n\nConteúdo atual:\n" + current, current);
+  if(edited===null) return;
+
+  const lines = String(edited).split("\n").map(l=>l.trim()).filter(Boolean);
+  const newHist = [];
+  for(const line of lines){
+    if(line==="(vazio)") continue;
+    const parts = line.split("|").map(p=>p.trim());
+    const d = normalizeDate(parts[0]);
+    const v = Number((parts[1]||"").replace(",", "."));
+    const note = parts.slice(2).join(" | ").trim();
+    if(!d || !Number.isFinite(v)) continue;
+    newHist.push({ date:d, totalBRL:v, note });
+  }
+  state.history = newHist;
+  sortHistory();
+  saveState();
+  renderHistory();
+  toast("Histórico atualizado.");
 }
 
 /* =========================
@@ -692,7 +969,8 @@ function importJSON(){
         ...structuredClone(DEFAULT_DATA),
         ...parsed,
         settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
-        manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) }
+        manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
+        history: Array.isArray(parsed.history) ? parsed.history : []
       };
       saveState();
       render();
@@ -709,23 +987,9 @@ function importJSON(){
    ========================= */
 async function refreshAll(){
   market.errors = [];
-  try{
-    await fetchFX();
-  }catch(e){
-    market.errors.push("FX indisponível");
-  }
-
-  try{
-    await fetchCrypto();
-  }catch(e){
-    market.errors.push("BTC indisponível");
-  }
-
-  try{
-    await fetchB3Quotes();
-  }catch(e){
-    market.errors.push("B3 indisponível");
-  }
+  try{ await fetchFX(); }catch(e){ market.errors.push("FX indisponível"); }
+  try{ await fetchCrypto(); }catch(e){ market.errors.push("BTC indisponível"); }
+  try{ await fetchB3Quotes(); }catch(e){ market.errors.push("B3 indisponível"); }
 
   market.lastUpdated = Date.now();
   render();
@@ -761,6 +1025,33 @@ el("resetBtn").addEventListener("click", ()=>{
   toast("Resetado.");
 });
 el("filterInput").addEventListener("input", render);
+
+// HISTÓRICO (NOVO)
+const todayISO = new Date().toISOString().slice(0,10);
+el("snapDate").value = todayISO;
+
+el("saveSnapshotBtn").addEventListener("click", ()=>{
+  const date = el("snapDate").value || todayISO;
+  const note = el("snapNote").value || "";
+  const total = computeTotalBRL();
+  const ok = upsertSnapshot(date, total, note);
+  if(ok){
+    toast("Snapshot salvo.");
+    el("snapNote").value = "";
+    renderHistory();
+  }
+});
+
+el("manageHistoryBtn").addEventListener("click", manageHistory);
+
+el("deleteLastSnapshotBtn").addEventListener("click", ()=>{
+  if(state.history.length===0){ toast("Não há snapshots."); return; }
+  const ok = confirm("Apagar o último snapshot? Isso não tem como desfazer.");
+  if(!ok) return;
+  deleteLastSnapshot();
+  renderHistory();
+  toast("Último snapshot apagado.");
+});
 
 /* =========================
    Boot
