@@ -664,12 +664,18 @@
    Config / Fontes
    - FX: Frankfurter (ECB)
    - BTC: CoinGecko
-   - Ações B3: brapi.dev
+   - Ações B3: brapi.dev (pode exigir token)
    - SELIC/CDI: BCB SGS (séries diárias)
    - iShares World: iShares page (NAV/1d NAV change) com fallback via r.jina.ai
    ========================= */
 
 const STORAGE_KEY = "inv_dashboard_v1";
+
+// compat: alguns navegadores não suportam structuredClone
+const deepClone = (obj) => {
+  if (typeof structuredClone === "function") return structuredClone(obj);
+  return JSON.parse(JSON.stringify(obj));
+};
 
 /* =========================
    Dados padrão
@@ -678,7 +684,8 @@ const STORAGE_KEY = "inv_dashboard_v1";
 const DEFAULT_DATA = {
   settings: {
     baseCurrency: "BRL",
-    autoRefreshMinutes: 30
+    autoRefreshMinutes: 30,
+    brapiToken: "" // opcional: token do brapi.dev (se necessário)
   },
   assets: [
     { id:"btc", name:"Bitcoin", category:"Cripto", account:"BINANCE", currency:"USD", mode:"crypto", coingeckoId:"bitcoin", qty:0.0, avgCost:null, notes:"Qtd em BTC; preço em USD" },
@@ -695,8 +702,6 @@ const DEFAULT_DATA = {
     { id:"nubank_caixinha", name:"Caixinha Nubank (120% CDI)", category:"Renda fixa", account:"NUBANK", currency:"BRL",
       mode:"rf_cdi", cdiMult: 1.20, lots:[], notes:"Aportes com datas. Base: CDI diária (BCB) × 120%." },
 
-    // Nu Reserva Imediata: fundo -> proxy por CDI (estimativa) - taxa adm 0,30% a.a.
-    // Se você não preencher lotes, você ainda pode manter qty como “saldo atual” (manual).
     { id:"nu_reserva", name:"Nu Reserva Imediata", category:"Fundo", account:"NUBANK", currency:"BRL",
       mode:"rf_cdi_proxy_fund", cdiMult: 1.00, adminFeeAnnual: 0.003, lots:[], qty:0.0, avgCost:null,
       notes:"Proxy CDI (estimativa) com taxa adm. 0,30% a.a. Se não usar lotes, saldo fica manual." },
@@ -709,7 +714,6 @@ const DEFAULT_DATA = {
     { id:"cmig4", name:"Cemig", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"CMIG4", qty:0.0, avgCost:null, notes:"Qtd de ações" },
     { id:"tasa4", name:"Taurus", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"TASA4", qty:0.0, avgCost:null, notes:"Qtd de ações" },
 
-    // iShares World Equity Index Fund (A2 USD) - automático via NAV
     { id:"wise_ishares_world", name:"iShares World Equity Index Fund (A2 USD)", category:"Fundo", account:"WISE", currency:"USD",
       mode:"fund_ishares_auto", qty:0.0, avgCost:null,
       isharesUrl:"https://www.ishares.com/ch/individual/en/products/243974/blackrock-world-equity-index-a2-usd-fund",
@@ -726,7 +730,6 @@ let market = {
   fx: { USDBRL: null, EURBRL: null },
   quotes: {},
   br: {
-    // Série diária (decimal ao dia) + caches
     selic: null,
     cdi: null,
     selicAnnualApprox: null,
@@ -746,7 +749,7 @@ function saveState(){
 
 function loadState(){
   const raw = localStorage.getItem(STORAGE_KEY);
-  if(!raw) return structuredClone(DEFAULT_DATA);
+  if(!raw) return deepClone(DEFAULT_DATA);
 
   try{
     const parsed = JSON.parse(raw);
@@ -755,21 +758,16 @@ function loadState(){
     const assets = Array.isArray(parsed.assets) ? parsed.assets.filter(a => a.id !== "usd_cash") : undefined;
 
     return {
-      ...structuredClone(DEFAULT_DATA),
+      ...deepClone(DEFAULT_DATA),
       ...parsed,
-      assets: assets ?? structuredClone(DEFAULT_DATA.assets),
-      settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) settings: {
-  baseCurrency: "BRL",
-  autoRefreshMinutes: 30,
-  brapiToken: "" // <- ADICIONE
-},
- },
+      assets: assets ?? deepClone(DEFAULT_DATA.assets),
+      settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
       manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
       history: Array.isArray(parsed.history) ? parsed.history : [],
       assetHistory: (parsed.assetHistory && typeof parsed.assetHistory==="object") ? parsed.assetHistory : {}
     };
   }catch{
-    return structuredClone(DEFAULT_DATA);
+    return deepClone(DEFAULT_DATA);
   }
 }
 
@@ -900,8 +898,6 @@ async function fetchB3Quotes(){
   if(syms.length===0) return;
 
   const token = String(state.settings?.brapiToken || "").trim();
-
-  // Se tiver token, coloca na URL. Se não tiver, tenta mesmo assim (pode funcionar para alguns).
   const urlFor = (sym) => {
     const base = `https://brapi.dev/api/quote/${encodeURIComponent(sym)}`;
     return token ? `${base}?token=${encodeURIComponent(token)}` : base;
@@ -924,7 +920,6 @@ async function fetchB3Quotes(){
   res.forEach((item, idx)=>{
     const sym = syms[idx];
     if(item.status!=="fulfilled"){
-      // deixa um erro real aparecer no painel
       market.errors.push(String(item.reason?.message || `B3 ${sym} falhou`));
       return;
     }
@@ -945,7 +940,6 @@ async function fetchB3Quotes(){
   });
 }
 
-
 /* =========================
    BCB (SGS) - Séries diárias SELIC/CDI com histórico
    Série 11 = SELIC diária (% a.d.)
@@ -961,7 +955,6 @@ async function fetchBCBSeriesRange(seriesCode, startISO, endISO){
   const r = await fetch(url, { cache:"no-store" });
   if(!r.ok) throw new Error("BCB SGS falhou ("+r.status+")");
   const j = await r.json();
-  // [{ data:"29/01/2026", valor:"0.0498" }] -> % a.d.
   return Array.isArray(j) ? j : [];
 }
 
@@ -972,7 +965,6 @@ function brDateToISO(d){
 }
 
 function buildDailySeries(rows){
-  // retorna { dates:[], rates:[] } onde rate = decimal ao dia (ex 0.0005)
   const tmp = [];
   for(const x of rows){
     const iso = brDateToISO(x.data);
@@ -990,7 +982,6 @@ function buildDailySeries(rows){
 
 function annualizeFromDaily(daily, basis=252){
   if(!Number.isFinite(daily)) return null;
-  // taxa diária decimal -> aproximação anual
   return Math.pow(1 + daily, basis) - 1;
 }
 
@@ -1010,8 +1001,6 @@ function getMinLotDateISO(){
 async function fetchBRRatesAndHistory(){
   const todayISO = new Date().toISOString().slice(0,10);
 
-  // pega histórico desde o primeiro aporte (se houver),
-  // senão puxa último 1 ano para manter leve.
   let startISO = getMinLotDateISO();
   if(!startISO){
     const d = new Date();
@@ -1019,7 +1008,6 @@ async function fetchBRRatesAndHistory(){
     startISO = d.toISOString().slice(0,10);
   }
 
-  // cache simples: se range já é o mesmo, não refaz
   if(market.br.histStartISO === startISO && market.br.histEndISO === todayISO && market.br.selic && market.br.cdi){
     return;
   }
@@ -1101,7 +1089,6 @@ async function fetchTextWithFallback(url){
   try{
     return await fetchTextNoStore(url);
   }catch(e){
-    // fallback: r.jina.ai (costuma liberar CORS)
     const clean = url.replace(/^https?:\/\//, "");
     const proxy = "https://r.jina.ai/https://" + clean;
     const r = await fetch(proxy, { cache:"no-store" });
@@ -1111,8 +1098,6 @@ async function fetchTextWithFallback(url){
 }
 
 function parseIsharesFromText(t){
-  // tenta capturar NAV e 1 Day NAV Change
-  // formatos variam: "NAV 48.65 USD" / "1 Day NAV Change -0.12%"
   const navMatch = t.match(/NAV\s*([\d.,]+)\s*USD/i);
   const chgMatch = t.match(/1\s*Day\s*NAV\s*Change\s*([+\-]?\d+(?:\.\d+)?)\s*%/i);
   const asOfMatch = t.match(/As\s*Of\s*([A-Za-z]+\s+\d{2},\s+\d{4})/i);
@@ -1138,7 +1123,6 @@ async function fetchIsharesWorld(){
         market.quotes[a.id] = market.quotes[a.id] || { price:null, changePct24h:null, currency:"USD" };
       }
     }catch(e){
-      // ignora, vai ficar como null
       market.quotes[a.id] = market.quotes[a.id] || { price:null, changePct24h:null, currency:"USD" };
       market.errors.push("iShares indisponível");
     }
@@ -1206,7 +1190,6 @@ function computeFixedIncomeFromLots(asset){
 }
 
 function computeRow(asset){
-  // Renda fixa por lotes (SELIC/CDI) com líquido e impostos
   if(asset.mode === "rf_selic" || asset.mode === "rf_cdi" || asset.mode === "rf_cdi_proxy_fund"){
     const r = computeFixedIncomeFromLots(asset);
 
@@ -1243,7 +1226,6 @@ function computeRow(asset){
     };
   }
 
-  // Outros: crypto, stock, fundos com quote automático, etc.
   let price = null;
   let change = null;
 
@@ -1739,9 +1721,8 @@ function render(){
     `Ativos: ${state.assets.length} • Base: BRL • Auto-refresh: ${state.settings.autoRefreshMinutes} min`;
 
   el("metaInfo").textContent =
-  market.errors.length ? `Avisos: ${market.errors.join(" | ")}` :
-  `Fontes: FX Frankfurter • SELIC/CDI BCB (SGS) • BTC CoinGecko • B3 brapi.dev`;
-
+    market.errors.length ? `Avisos: ${market.errors.join(" | ")}` :
+    `Fontes: FX Frankfurter • SELIC/CDI BCB (SGS) • BTC CoinGecko • B3 brapi.dev`;
 
   el("lastUpdated").textContent = market.lastUpdated ? new Date(market.lastUpdated).toLocaleString("pt-BR") : "—";
 
@@ -1778,7 +1759,6 @@ function openEditAsset(assetId){
   el("editAvgCost").disabled = isBalance || (asset.mode==="rf_selic" || asset.mode==="rf_cdi" || asset.mode==="rf_cdi_proxy_fund");
   el("editAvgCost").value = (asset.avgCost===null || asset.avgCost===undefined) ? "" : String(asset.avgCost);
 
-  // lotes: SELIC/CDI + Nu Reserva proxy
   const lotsRow = el("lotsRow");
   if(asset.mode === "rf_selic" || asset.mode === "rf_cdi" || asset.mode === "rf_cdi_proxy_fund"){
     lotsRow.style.display = "";
@@ -1820,7 +1800,6 @@ function saveEditAsset(){
   }
   asset.qty = qty;
 
-  // avgCost
   if(!(asset.mode==="rf_selic" || asset.mode==="rf_cdi" || asset.mode==="rf_cdi_proxy_fund") && asset.mode!=="manual_balance"){
     const rawAvg = String(el("editAvgCost").value||"").trim();
     if(rawAvg==="") asset.avgCost = null;
@@ -1832,7 +1811,6 @@ function saveEditAsset(){
     asset.avgCost = null;
   }
 
-  // manual price
   if(asset.mode==="fund_manual"){
     const rawP = String(el("editManualPrice").value||"").trim();
     const p = Number(rawP.replace(",", "."));
@@ -1843,7 +1821,6 @@ function saveEditAsset(){
     state.manualPrices[asset.id] = { price: p };
   }
 
-  // notes
   const short = String(el("editNotesShort").value||"").trim();
   const notes = String(el("editNotes").value||"").trim();
   asset.notes = notes || asset.notes || "";
@@ -1851,7 +1828,6 @@ function saveEditAsset(){
     asset.notes = asset.notes ? (asset.notes + " • " + short) : short;
   }
 
-  // lotes
   if(asset.mode === "rf_selic" || asset.mode === "rf_cdi" || asset.mode === "rf_cdi_proxy_fund"){
     const raw = String(el("editLots").value||"").trim();
     const lines = raw ? raw.split("\n").map(l=>l.trim()).filter(Boolean) : [];
@@ -1865,7 +1841,6 @@ function saveEditAsset(){
     }
     newLots.sort((a,b)=> (a.date||"").localeCompare(b.date||""));
     asset.lots = newLots;
-    // força recarregar histórico BCB se a data mínima mudou
     market.br.histStartISO = null;
   }
 
@@ -1973,9 +1948,9 @@ function importJSON(){
       const assets = Array.isArray(parsed.assets) ? parsed.assets.filter(a => a.id !== "usd_cash") : undefined;
 
       state = {
-        ...structuredClone(DEFAULT_DATA),
+        ...deepClone(DEFAULT_DATA),
         ...parsed,
-        assets: assets ?? structuredClone(DEFAULT_DATA.assets),
+        assets: assets ?? deepClone(DEFAULT_DATA.assets),
         settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
         manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
         history: Array.isArray(parsed.history) ? parsed.history : [],
@@ -2023,18 +1998,23 @@ function showHistoryMode(mode){
 async function refreshAll(){
   market.errors = [];
 
-  try{ await fetchFX(); }catch(e){ market.errors.push("FX indisponível"); }
+  try{ await fetchFX(); }
+  catch(e){ market.errors.push(`FX ${String(e?.message||"indisponível")}`); }
 
-  try{ await fetchBRRatesAndHistory(); }catch(e){ market.errors.push("SELIC/CDI indisponível"); }
+  try{ await fetchBRRatesAndHistory(); }
+  catch(e){ market.errors.push(`SELIC/CDI ${String(e?.message||"indisponível")}`); }
 
   if(market.fx.USDBRL === null || market.fx.EURBRL === null){
     market.errors.push("Câmbio incompleto");
   }
 
-  try{ await fetchCrypto(); }catch(e){ market.errors.push("BTC indisponível"); }
-  try{ await fetchB3Quotes(); }catch(e){ market.errors.push("B3 indisponível"); }
+  try{ await fetchCrypto(); }
+  catch(e){ market.errors.push(`BTC ${String(e?.message||"indisponível")}`); }
 
-  // iShares
+  // B3: erros por ticker aparecem dentro de fetchB3Quotes() (com HTTP e status)
+  try{ await fetchB3Quotes(); }
+  catch(e){ market.errors.push(`B3 ${String(e?.message||"indisponível")}`); }
+
   try{ await fetchIsharesWorld(); }catch(e){ /* já tratado */ }
 
   market.lastUpdated = Date.now();
@@ -2056,7 +2036,7 @@ el("resetBtn").addEventListener("click", ()=>{
   const ok = confirm("Tem certeza? Isso apaga os dados salvos no navegador.");
   if(!ok) return;
   localStorage.removeItem(STORAGE_KEY);
-  state = structuredClone(DEFAULT_DATA);
+  state = deepClone(DEFAULT_DATA);
   saveState();
   market.br.histStartISO = null;
   render();
