@@ -758,7 +758,12 @@ function loadState(){
       ...structuredClone(DEFAULT_DATA),
       ...parsed,
       assets: assets ?? structuredClone(DEFAULT_DATA.assets),
-      settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
+      settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) settings: {
+  baseCurrency: "BRL",
+  autoRefreshMinutes: 30,
+  brapiToken: "" // <- ADICIONE
+},
+ },
       manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
       history: Array.isArray(parsed.history) ? parsed.history : [],
       assetHistory: (parsed.assetHistory && typeof parsed.assetHistory==="object") ? parsed.assetHistory : {}
@@ -891,53 +896,55 @@ async function fetchCrypto(){
 }
 
 async function fetchB3Quotes(){
-  const syms = state.assets
-    .filter(x => x.mode === "stock_b3")
-    .map(x => (x.symbol || "").toUpperCase().trim())
-    .filter(Boolean);
+  const syms = state.assets.filter(x=>x.mode==="stock_b3").map(x=>x.symbol).filter(Boolean);
+  if(syms.length===0) return;
 
-  if(syms.length === 0) return;
+  const token = String(state.settings?.brapiToken || "").trim();
 
-  // ✅ 1 chamada só (reduz chance de rate limit)
-  const url = `https://brapi.dev/api/quote/${encodeURIComponent(syms.join(","))}`;
+  // Se tiver token, coloca na URL. Se não tiver, tenta mesmo assim (pode funcionar para alguns).
+  const urlFor = (sym) => {
+    const base = `https://brapi.dev/api/quote/${encodeURIComponent(sym)}`;
+    return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  };
 
-  const r = await fetch(url, { cache: "no-store" });
-
-  // ✅ agora você enxerga quando a API bloqueou
-  if(!r.ok){
-    throw new Error(`brapi falhou: HTTP ${r.status}`);
-  }
-
-  const j = await r.json();
-  const results = Array.isArray(j?.results) ? j.results : [];
-
-  // Mapa por símbolo
-  const bySymbol = new Map(
-    results.map(q => [String(q?.symbol || "").toUpperCase(), q])
+  const tasks = syms.map(sym =>
+    fetch(urlFor(sym), { cache:"no-store" })
+      .then(async r=>{
+        if(!r.ok){
+          const text = await r.text().catch(()=> "");
+          throw new Error(`B3 ${sym} HTTP ${r.status} ${text.slice(0,120)}`);
+        }
+        return r.json();
+      })
+      .then(j=>({sym,j}))
   );
 
-  // Preenche market.quotes por asset.id
-  for(const asset of state.assets.filter(a => a.mode === "stock_b3")){
-    const sym = String(asset.symbol || "").toUpperCase();
-    const q = bySymbol.get(sym);
+  const res = await Promise.allSettled(tasks);
 
-    // Algumas vezes o API pode não mandar price, então usa fallback
-    const price =
-      q?.regularMarketPrice ??
-      q?.regularMarketPreviousClose ??
-      null;
+  res.forEach((item, idx)=>{
+    const sym = syms[idx];
+    if(item.status!=="fulfilled"){
+      // deixa um erro real aparecer no painel
+      market.errors.push(String(item.reason?.message || `B3 ${sym} falhou`));
+      return;
+    }
 
-    const chg =
-      q?.regularMarketChangePercent ??
-      null;
+    const q = item.value.j?.results?.[0];
+    if(!q){
+      market.errors.push(`B3 ${sym} sem results`);
+      return;
+    }
 
-    market.quotes[asset.id] = {
-      price,
-      changePct24h: chg,
-      currency: "BRL"
-    };
-  }
+    const price = q.regularMarketPrice ?? null;
+    const chg = q.regularMarketChangePercent ?? null;
+
+    const asset = state.assets.find(a=>a.mode==="stock_b3" && a.symbol===sym);
+    if(!asset) return;
+
+    market.quotes[asset.id] = { price, changePct24h: chg, currency: "BRL" };
+  });
 }
+
 
 /* =========================
    BCB (SGS) - Séries diárias SELIC/CDI com histórico
@@ -1732,8 +1739,9 @@ function render(){
     `Ativos: ${state.assets.length} • Base: BRL • Auto-refresh: ${state.settings.autoRefreshMinutes} min`;
 
   el("metaInfo").textContent =
-    market.errors.length ? `Avisos: ${market.errors.join(" | ")}` :
-    `Fontes: FX Frankfurter • SELIC/CDI BCB (SGS) • BTC CoinGecko • B3 brapi.dev • iShares NAV`;
+  market.errors.length ? `Avisos: ${market.errors.join(" | ")}` :
+  `Fontes: FX Frankfurter • SELIC/CDI BCB (SGS) • BTC CoinGecko • B3 brapi.dev`;
+
 
   el("lastUpdated").textContent = market.lastUpdated ? new Date(market.lastUpdated).toLocaleString("pt-BR") : "—";
 
