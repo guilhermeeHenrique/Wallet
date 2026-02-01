@@ -6,7 +6,6 @@
   <title>Dashboard de Investimentos — BRL Base</title>
   <style>
     :root{
-      /* Visual upgrade: contraste + tipografia + “fintech” */
       --bg:#0a0f16;
       --card:#0f1826;
       --card2:#0c1421;
@@ -38,7 +37,7 @@
         var(--bg);
       color:var(--text);
       font-family:var(--sans);
-      font-size:14px; /* base 14px */
+      font-size:14px;
       line-height:1.45;
     }
 
@@ -218,9 +217,6 @@
     }
     .toast.show{display:block}
 
-    /* =========================
-       HISTÓRICO (GERAL)
-       ========================= */
     .historyCard{grid-column: span 12; padding:0}
     .historyGrid{
       display:grid;
@@ -261,9 +257,6 @@
     }
     .miniTable tr:last-child td{border-bottom:none;}
 
-    /* =========================
-       MODAL (EDIÇÃO INDIVIDUAL)
-       ========================= */
     .modalOverlay{
       position:fixed; inset:0;
       background:rgba(0,0,0,.62);
@@ -356,9 +349,6 @@
       border-top:1px solid rgba(255,255,255,.10);
     }
 
-    /* =========================
-       HISTÓRICO POR ATIVO
-       ========================= */
     .assetHistoryCard{grid-column: span 12; padding:0; display:none;}
     .assetHistoryCard.show{display:block;}
     .segmented{
@@ -485,6 +475,8 @@
               <th class="right">Preço atual</th>
               <th class="right">Valor (moeda)</th>
               <th class="right">Valor (BRL)</th>
+              <th class="right">Líquido (BRL)</th>
+              <th class="right">Impostos (BRL)</th>
               <th class="right">G/P (BRL)</th>
               <th class="right">24h</th>
               <th>Status</th>
@@ -498,16 +490,13 @@
       <div class="tableHeader" style="border-top:1px solid rgba(255,255,255,.08); border-bottom:none;">
         <div class="footerNote">
           <b>Notas rápidas</b><br/>
-          1) “Preço atual” é automático para BTC (CoinGecko) e ações B3 (brapi). Fundos/renda fixa ficam manual (você atualiza saldo).<br/>
+          1) “Preço atual” é automático para BTC (CoinGecko) e ações B3 (brapi). Fundos/renda fixa ficam manual (ou por lotes, quando habilitado).<br/>
           2) O painel atualiza sozinho enquanto estiver aberto. Se você quiser atualização diária mesmo com o navegador fechado, isso exige hospedar com um job/cron.<br/>
           3) Isso é uma ferramenta de acompanhamento, não é recomendação de investimento.
         </div>
       </div>
     </div>
 
-    <!-- =========================
-         HISTÓRICO GERAL (PORTFÓLIO)
-         ========================= -->
     <div class="card historyCard" id="portfolioHistoryCard">
       <div class="tableHeader">
         <div>
@@ -552,9 +541,6 @@
       </div>
     </div>
 
-    <!-- =========================
-         HISTÓRICO POR ATIVO (NOVO)
-         ========================= -->
     <div class="card assetHistoryCard" id="assetHistoryCard">
       <div class="tableHeader">
         <div>
@@ -606,9 +592,6 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- =========================
-     Drawer / Modal de edição (NOVO)
-     ========================= -->
 <div class="modalOverlay" id="assetEditOverlay" role="dialog" aria-modal="true" aria-label="Editar investimento">
   <div class="drawer" role="document">
     <div class="drawerHeader">
@@ -620,17 +603,29 @@
     </div>
 
     <div class="drawerBody">
-      <div class="formRow">
+      <!-- Quantidade / Saldo (para ativos não-lotes) -->
+      <div class="formRow one" id="qtyRow">
         <div class="field">
           <label id="editQtyLabel" for="editQty">Quantidade</label>
           <input type="number" id="editQty" step="any" />
-          <div class="hint" id="editQtyHint">—</div>
+          <div class="hint" id="editQtyHint">Digite a quantidade de unidades/cotas.</div>
         </div>
+      </div>
 
+      <!-- Lotes (renda fixa por aportes) -->
+      <div class="formRow one" id="lotsRow" style="display:none;">
+        <div class="field">
+          <label for="editLots">Aportes (um por linha)</label>
+          <textarea id="editLots" placeholder="YYYY-MM-DD | 1000.00&#10;2026-09-01 | 500.00"></textarea>
+          <div class="hint">Use ponto no decimal. O sistema calcula bruto e líquido (IOF/IR) como se resgatasse hoje.</div>
+        </div>
+      </div>
+
+      <div class="formRow one">
         <div class="field">
           <label for="editAvgCost">Preço médio (opcional)</label>
           <input type="number" id="editAvgCost" step="any" placeholder="Ex.: 24.50" />
-          <div class="hint">Se vazio, o painel ignora o cálculo de G/P.</div>
+          <div class="hint">Se vazio, o painel ignora o cálculo de G/P (não se aplica para saldo manual e renda fixa por lotes).</div>
         </div>
       </div>
 
@@ -665,18 +660,14 @@
 <script>
 /* =========================
    Config / Fontes
-   - FX: Frankfurter (ECB)
-   - BTC: CoinGecko
-   - Ações B3: brapi.dev
    ========================= */
-
 const STORAGE_KEY = "inv_dashboard_v1";
 
-/**
- * HISTÓRICO:
- * - Portfólio (já existia): state.history = [{date,totalBRL,note}]
- * - Por ativo (novo): state.assetHistory = { [assetId]: [{date,totalNative,note}] }
- */
+/* Fallback structuredClone */
+const sClone = (obj) => {
+  if (typeof structuredClone === "function") return structuredClone(obj);
+  return JSON.parse(JSON.stringify(obj));
+};
 
 const DEFAULT_DATA = {
   settings: {
@@ -685,15 +676,23 @@ const DEFAULT_DATA = {
   },
   assets: [
     { id:"btc", name:"Bitcoin", category:"Cripto", account:"BINANCE", currency:"USD", mode:"crypto", coingeckoId:"bitcoin", qty:0.0, avgCost:null, notes:"Qtd em BTC; preço em USD" },
-    { id:"usd_cash", name:"Dólar em conta", category:"Caixa", account:"BINANCE", currency:"USD", mode:"cash", qty:0.0, avgCost:1.0, notes:"Saldo em USD" },
 
-    { id:"td_selic_2026", name:"Tesouro Selic 2026", category:"Renda fixa", account:"C6", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
-    { id:"td_selic_2027", name:"Tesouro Selic 2027", category:"Renda fixa", account:"C6", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
-    { id:"td_selic_2029", name:"Tesouro Selic 2029", category:"Renda fixa", account:"C6", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
+    { id:"td_selic_2026", name:"Tesouro Selic 2026", category:"Renda fixa", account:"C6", currency:"BRL",
+      mode:"rf_selic", lots:[], qty:0.0, avgCost:null, notes:"Aportes com datas. Base: SELIC (BCB)." },
 
-    { id:"nubank_caixinha", name:"Caixinha Nubank (120% CDI)", category:"Renda fixa", account:"NUBANK", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
+    { id:"td_selic_2027", name:"Tesouro Selic 2027", category:"Renda fixa", account:"C6", currency:"BRL",
+      mode:"rf_selic", lots:[], qty:0.0, avgCost:null, notes:"Aportes com datas. Base: SELIC (BCB)." },
+
+    { id:"td_selic_2029", name:"Tesouro Selic 2029", category:"Renda fixa", account:"C6", currency:"BRL",
+      mode:"rf_selic", lots:[], qty:0.0, avgCost:null, notes:"Aportes com datas. Base: SELIC (BCB)." },
+
+    { id:"nubank_caixinha", name:"Caixinha Nubank (120% CDI)", category:"Renda fixa", account:"NUBANK", currency:"BRL",
+      mode:"rf_cdi", cdiMult: 1.20, lots:[], qty:0.0, avgCost:null, notes:"Aportes com datas. Base: 120% do CDI (BCB)." },
+
     { id:"nu_reserva", name:"Nu Reserva Imediata", category:"Fundo", account:"NUBANK", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
-    { id:"mp_cofrinho", name:"Cofrinho Mercado Pago (120% CDI)", category:"Renda fixa", account:"Mercado Pago", currency:"BRL", mode:"manual_balance", qty:0.0, avgCost:null, notes:"Saldo atual (manual)" },
+
+    { id:"mp_cofrinho", name:"Cofrinho Mercado Pago (120% CDI)", category:"Renda fixa", account:"Mercado Pago", currency:"BRL",
+      mode:"rf_cdi", cdiMult: 1.20, lots:[], qty:0.0, avgCost:null, notes:"Aportes com datas. Base: 120% do CDI (BCB)." },
 
     { id:"ggbr4", name:"Gerdau", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"GGBR4", qty:0.0, avgCost:null, notes:"Qtd de ações" },
     { id:"vale3", name:"Vale", category:"Ações B3", account:"Inter", currency:"BRL", mode:"stock_b3", symbol:"VALE3", qty:0.0, avgCost:null, notes:"Qtd de ações" },
@@ -706,13 +705,14 @@ const DEFAULT_DATA = {
     "wise_ishares_world": { price: 0.0 }
   },
   history: [],
-  assetHistory: {} // NOVO
+  assetHistory: {}
 };
 
 let state = loadState();
 let market = {
   fx: { USDBRL: null, EURBRL: null },
   quotes: {},
+  brRates: { selicAnnual: null, cdiAnnual: null },
   lastUpdated: null,
   errors: []
 };
@@ -722,21 +722,30 @@ const el = (id) => document.getElementById(id);
 function saveState(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
+
 function loadState(){
   const raw = localStorage.getItem(STORAGE_KEY);
-  if(!raw) return structuredClone(DEFAULT_DATA);
+  if(!raw) return sClone(DEFAULT_DATA);
+
   try{
     const parsed = JSON.parse(raw);
+
+    // migração: remove ativo eliminado (se existir)
+    const parsedAssets = Array.isArray(parsed.assets)
+      ? parsed.assets.filter(a => a && a.id !== "usd_cash")
+      : undefined;
+
     return {
-      ...structuredClone(DEFAULT_DATA),
+      ...sClone(DEFAULT_DATA),
       ...parsed,
+      assets: parsedAssets ?? sClone(DEFAULT_DATA.assets),
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
       manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
       history: Array.isArray(parsed.history) ? parsed.history : [],
       assetHistory: (parsed.assetHistory && typeof parsed.assetHistory==="object") ? parsed.assetHistory : {}
     };
   }catch{
-    return structuredClone(DEFAULT_DATA);
+    return sClone(DEFAULT_DATA);
   }
 }
 
@@ -760,11 +769,51 @@ function toast(msg){
   setTimeout(()=>t.classList.remove("show"), 2800);
 }
 
-/* ================
+/* =========================
+   BR Rates + Tax Engine (SELIC/CDI/IOF/IR)
+   ========================= */
+function daysBetweenISO(dateISO, now = new Date()){
+  const d = new Date(dateISO + "T00:00:00");
+  const ms = now.getTime() - d.getTime();
+  return Math.max(0, Math.floor(ms / (24*60*60*1000)));
+}
+function compoundDaily(principal, annualRate, days, basis=252){
+  const r = (annualRate <= -0.999) ? -0.999 : annualRate;
+  const daily = Math.pow(1 + r, 1/basis) - 1;
+  return principal * Math.pow(1 + daily, days);
+}
+
+// IOF regressivo (dias 1..30), % do rendimento
+const IOF_REGRESSIVE = [
+  0,
+  0.96,0.93,0.90,0.86,0.83,0.80,0.76,0.73,0.70,
+  0.66,0.63,0.60,0.56,0.53,0.50,0.46,0.43,0.40,
+  0.36,0.33,0.30,0.26,0.23,0.20,0.16,0.13,0.10,
+  0.06,0.03
+];
+function iofRateForDays(days){
+  if(days <= 0) return 0;
+  if(days >= 30) return 0;
+  return IOF_REGRESSIVE[Math.min(30, days)] || 0;
+}
+const IR_DEFAULT_TIERS = [
+  { maxDays: 180, rate: 0.225 },
+  { maxDays: 360, rate: 0.20 },
+  { maxDays: 720, rate: 0.175 },
+  { maxDays: Infinity, rate: 0.15 }
+];
+function irRateForDays(days, tiers = IR_DEFAULT_TIERS){
+  const d = Math.max(0, Number(days||0));
+  for(const t of tiers){
+    if(d <= t.maxDays) return t.rate;
+  }
+  return 0.15;
+}
+
+/* =========================
    Fetchers
-   ================ */
+   ========================= */
 async function fetchFX(){
-  // Frankfurter (ECB) — domínio correto
   const url = "https://api.frankfurter.app/latest?from=EUR&to=BRL,USD";
   const r = await fetch(url, { cache: "no-store" });
   if(!r.ok) throw new Error("Frankfurter falhou ("+r.status+")");
@@ -773,14 +822,30 @@ async function fetchFX(){
   const eurbrl = Number(j?.rates?.BRL);
   const eurusd = Number(j?.rates?.USD);
 
-  // EUR/BRL direto
   market.fx.EURBRL = Number.isFinite(eurbrl) ? eurbrl : null;
-
-  // Converte via EUR: USDBRL = (BRL por EUR) / (USD por EUR)
   market.fx.USDBRL =
     (Number.isFinite(eurbrl) && Number.isFinite(eurusd) && eurusd !== 0)
       ? (eurbrl / eurusd)
       : null;
+}
+
+async function fetchBCBSeriesLastValue(seriesCode){
+  const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${seriesCode}/dados/ultimos/1?formato=json`;
+  const r = await fetch(url, { cache:"no-store" });
+  if(!r.ok) throw new Error("BCB SGS falhou ("+r.status+")");
+  const j = await r.json();
+  const v = Number(String(j?.[0]?.valor || "").replace(",", "."));
+  if(!Number.isFinite(v)) return null;
+  return v; // % a.a.
+}
+const BCB_SERIES = { selic: 432, cdi: 12 };
+
+async function fetchBRRates(){
+  const selicPct = await fetchBCBSeriesLastValue(BCB_SERIES.selic);
+  const cdiPct   = await fetchBCBSeriesLastValue(BCB_SERIES.cdi);
+
+  market.brRates.selicAnnual = (selicPct===null) ? null : (selicPct / 100);
+  market.brRates.cdiAnnual   = (cdiPct===null)   ? null : (cdiPct   / 100);
 }
 
 async function fetchCrypto(){
@@ -840,11 +905,92 @@ function getFXToBRL(currency){
 }
 
 /* =========================
+   Histórico utils
+   ========================= */
+function normalizeDate(yyyy_mm_dd){
+  if(!yyyy_mm_dd) return null;
+  const s = String(yyyy_mm_dd).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  return s;
+}
+function sortHistory(){
+  state.history.sort((x,y)=> (x.date||"").localeCompare(y.date||""));
+}
+
+/* =========================
    Cálculos por ativo
    ========================= */
+function computeFixedIncomeFromLots(asset){
+  const now = new Date();
+
+  const lots = Array.isArray(asset.lots) ? asset.lots : [];
+  if(lots.length === 0){
+    return { grossNative: null, netNative: null, taxesNative: null, principalNative: 0, rateUsed: null };
+  }
+
+  let annual = null;
+  if(asset.mode === "rf_selic") annual = market.brRates.selicAnnual;
+  if(asset.mode === "rf_cdi"){
+    if(market.brRates.cdiAnnual !== null){
+      annual = market.brRates.cdiAnnual * Number(asset.cdiMult || 1);
+    }
+  }
+  if(annual === null) return { grossNative: null, netNative: null, taxesNative: null, principalNative: 0, rateUsed: null };
+
+  let gross = 0, net = 0, taxes = 0, principalSum = 0;
+
+  for(const lot of lots){
+    const d = normalizeDate(lot.date);
+    const principal = Number(String(lot.amount||0).replace(",", "."));
+    if(!d || !Number.isFinite(principal) || principal <= 0) continue;
+
+    principalSum += principal;
+
+    const days = daysBetweenISO(d, now);
+    const grossLot = compoundDaily(principal, annual, days, 252);
+    const earnings = Math.max(0, grossLot - principal);
+
+    const iofRate = iofRateForDays(days);
+    const iof = earnings * iofRate;
+
+    const earningsAfterIOF = Math.max(0, earnings - iof);
+    const ir = earningsAfterIOF * irRateForDays(days, IR_DEFAULT_TIERS);
+
+    const netLot = principal + (earningsAfterIOF - ir);
+
+    gross += grossLot;
+    net   += netLot;
+    taxes += (iof + ir);
+  }
+
+  return { grossNative: gross, netNative: net, taxesNative: taxes, principalNative: principalSum, rateUsed: annual };
+}
+
 function computeRow(asset){
   let price = null;
   let change = null;
+
+  if(asset.mode === "rf_selic" || asset.mode === "rf_cdi"){
+    const r = computeFixedIncomeFromLots(asset);
+
+    const fx = getFXToBRL(asset.currency);
+    const valueBRLGross = (r.grossNative===null || fx===null) ? null : r.grossNative * fx;
+    const valueBRLNet   = (r.netNative===null   || fx===null) ? null : r.netNative   * fx;
+    const taxesBRL      = (r.taxesNative===null || fx===null) ? null : r.taxesNative * fx;
+
+    return {
+      price: null,
+      change: null,
+      valueNative: r.grossNative,
+      valueNativeNet: r.netNative,
+      valueBRL: valueBRLGross,
+      valueBRLNet,
+      taxesBRL,
+      pnlBRL: null,
+      fx,
+      principalNative: r.principalNative
+    };
+  }
 
   if(asset.mode==="crypto" || asset.mode==="stock_b3"){
     price = market.quotes[asset.id]?.price ?? null;
@@ -878,7 +1024,7 @@ function computeRow(asset){
     }
   }
 
-  return { price, change, valueNative, valueBRL, pnlBRL, fx };
+  return { price, change, valueNative, valueBRL, pnlBRL, fx, valueBRLNet: null, taxesBRL: null, principalNative: null };
 }
 
 /* =========================
@@ -896,15 +1042,6 @@ function computeTotalBRL(){
 /* =========================
    HISTÓRICO (GERAL)
    ========================= */
-function normalizeDate(yyyy_mm_dd){
-  if(!yyyy_mm_dd) return null;
-  const s = String(yyyy_mm_dd).trim();
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  return s;
-}
-function sortHistory(){
-  state.history.sort((x,y)=> (x.date||"").localeCompare(y.date||""));
-}
 function upsertSnapshot(date, totalBRL, note=""){
   const d = normalizeDate(date);
   if(!d) { toast("Data inválida."); return false; }
@@ -928,7 +1065,7 @@ function deleteLastSnapshot(){
 }
 
 /* =========================
-   HISTÓRICO POR ATIVO (NOVO)
+   HISTÓRICO POR ATIVO
    ========================= */
 function getAssetHistoryList(assetId){
   if(!state.assetHistory) state.assetHistory = {};
@@ -1002,7 +1139,7 @@ ATENÇÃO: use ponto no decimal (.)
 }
 
 /* =========================
-   Gráficos (canvas) — geral e por ativo
+   Gráficos canvas
    ========================= */
 function setupCanvasHiDpi(canvas){
   const ctx = canvas.getContext("2d");
@@ -1014,13 +1151,10 @@ function setupCanvasHiDpi(canvas){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   return { ctx, cssW, cssH };
 }
-
 function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyText}){
   const { ctx, cssW, cssH } = setupCanvasHiDpi(canvas);
-
   ctx.clearRect(0,0,cssW,cssH);
 
-  // fundo sutil
   ctx.fillStyle = "rgba(255,255,255,.02)";
   ctx.fillRect(0,0,cssW,cssH);
 
@@ -1040,7 +1174,6 @@ function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyTe
   const maxV = Math.max(...values);
   const range = (maxV - minV) || 1;
 
-  // grade
   ctx.strokeStyle = "rgba(255,255,255,.06)";
   ctx.lineWidth = 1;
   for(let i=0;i<=4;i++){
@@ -1051,12 +1184,10 @@ function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyTe
     ctx.stroke();
   }
 
-  // cor por tendência
   const up = values[values.length-1] >= values[0];
   ctx.strokeStyle = up ? (colorUp || "rgba(43,213,116,.92)") : (colorDown || "rgba(255,92,108,.92)");
   ctx.lineWidth = 2.4;
 
-  // linha
   ctx.beginPath();
   points.forEach((p, i)=>{
     const x = pad + (W*(i/(points.length-1)));
@@ -1066,7 +1197,6 @@ function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyTe
   });
   ctx.stroke();
 
-  // pontos
   ctx.fillStyle = "rgba(255,255,255,.85)";
   points.forEach((p, i)=>{
     const x = pad + (W*(i/(points.length-1)));
@@ -1076,7 +1206,6 @@ function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyTe
     ctx.fill();
   });
 
-  // labels
   ctx.fillStyle = "rgba(169,189,216,.95)";
   ctx.font = "12px " + getComputedStyle(document.documentElement).getPropertyValue("--mono");
   ctx.fillText(points[0].label, pad, cssH - 8);
@@ -1091,6 +1220,12 @@ function drawLineChart({canvas, points, formatValue, colorUp, colorDown, emptyTe
 /* =========================
    Render histórico geral
    ========================= */
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, (m)=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
+
 function renderHistory(){
   sortHistory();
   const h = state.history;
@@ -1148,9 +1283,31 @@ function renderHistory(){
 }
 
 /* =========================
-   Render histórico por ativo (NOVO)
+   Render histórico por ativo
    ========================= */
 let selectedAssetId = null;
+
+function isAssetMode(){
+  return el("assetHistoryCard").classList.contains("show");
+}
+function showHistoryMode(mode){
+  const portfolioCard = el("portfolioHistoryCard");
+  const assetCard = el("assetHistoryCard");
+  const p1 = el("modePortfolioBtn"), a1 = el("modeAssetBtn");
+  const p2 = el("modePortfolioBtn2"), a2 = el("modeAssetBtn2");
+
+  if(mode==="asset"){
+    portfolioCard.style.display = "none";
+    assetCard.classList.add("show");
+    p1.classList.remove("active"); a1.classList.add("active");
+    p2.classList.remove("active"); a2.classList.add("active");
+  }else{
+    portfolioCard.style.display = "";
+    assetCard.classList.remove("show");
+    p1.classList.add("active"); a1.classList.remove("active");
+    p2.classList.add("active"); a2.classList.remove("active");
+  }
+}
 
 function renderAssetHistory(assetId){
   const asset = state.assets.find(a=>a.id===assetId);
@@ -1169,23 +1326,13 @@ function renderAssetHistory(assetId){
   }
 
   selectedAssetId = assetId;
-
-  // UI: alterna para modo ativo
   showHistoryMode("asset");
 
   el("assetHistoryTitle").textContent = `Histórico — ${asset.name}${asset.symbol?` (${asset.symbol})`:``}`;
   el("assetHistoryMeta").textContent = `Moeda do ativo: ${asset.currency} • Conta: ${asset.account} • Categoria: ${asset.category}`;
 
-  // Preenche data default
   const todayISO = new Date().toISOString().slice(0,10);
   el("assetSnapDate").value = el("assetSnapDate").value || todayISO;
-
-  // Sugestão: valor atual do ativo em moeda (nativo)
-  const c = computeRow(asset);
-  if(c.valueNative !== null && (el("assetSnapValue").value==="" || el("assetSnapValue").value===null)){
-    // não sobrescreve se usuário já digitou
-    // (deixa “hint” implícita ao clicar em “Salvar”)
-  }
 
   sortAssetHistory(assetId);
   const h = getAssetHistoryList(assetId);
@@ -1279,11 +1426,23 @@ function render(){
     tr.classList.add("clickableRow");
     tr.dataset.assetId = a.id;
 
-    const statusDot = (a.mode==="crypto" || a.mode==="stock_b3") ? "green" : (a.mode==="fund_manual" ? "yellow" : "blue");
-    const statusText = (a.mode==="crypto" || a.mode==="stock_b3") ? "Automático" : (a.mode==="fund_manual" ? "Preço manual" : "Saldo manual");
+    const isAuto = (a.mode==="crypto" || a.mode==="stock_b3");
+    const isManualPrice = (a.mode==="fund_manual");
+    const isLots = (a.mode==="rf_selic" || a.mode==="rf_cdi");
 
-    const qtyLabel = (a.mode==="manual_balance") ? "Saldo" : "Qtd";
-    const qtyDisplay = (a.mode==="manual_balance") ? fmtMoney(Number(a.qty||0), a.currency) : fmtNum(Number(a.qty||0), 8);
+    const statusDot = isAuto ? "green" : (isManualPrice ? "yellow" : (isLots ? "blue" : "blue"));
+    const statusText = isAuto ? "Automático" : (isManualPrice ? "Preço manual" : (isLots ? "Renda fixa (lotes)" : "Saldo manual"));
+
+    let qtyLabel = (a.mode==="manual_balance") ? "Saldo" : "Qtd";
+    let qtyDisplay = (a.mode==="manual_balance")
+      ? fmtMoney(Number(a.qty||0), a.currency)
+      : fmtNum(Number(a.qty||0), 8);
+
+    if(isLots){
+      qtyLabel = "Principal";
+      const principal = Number(c.principalNative || 0);
+      qtyDisplay = fmtMoney(principal, a.currency);
+    }
 
     const priceDisplay = (c.price===null) ? "—" : (
       a.mode==="manual_balance" ? "—" :
@@ -1293,6 +1452,8 @@ function render(){
 
     const valueNativeDisplay = c.valueNative===null ? "—" : fmtMoney(c.valueNative, a.currency);
     const valueBRLDisplay = c.valueBRL===null ? "—" : fmtMoney(c.valueBRL, "BRL");
+    const valueBRLNetDisplay = (c.valueBRLNet===null) ? "—" : fmtMoney(c.valueBRLNet, "BRL");
+    const taxesBRLDisplay = (c.taxesBRL===null) ? "—" : fmtMoney(c.taxesBRL, "BRL");
 
     const pnlClass = (c.pnlBRL===null) ? "muted" : (c.pnlBRL>=0 ? "pos" : "neg");
     const pnlDisplay = (c.pnlBRL===null) ? "—" : fmtMoney(c.pnlBRL, "BRL");
@@ -1321,6 +1482,8 @@ function render(){
       <td class="right mono">${priceDisplay}</td>
       <td class="right mono">${valueNativeDisplay}</td>
       <td class="right mono" style="font-weight:900;">${valueBRLDisplay}</td>
+      <td class="right mono" style="font-weight:900;">${valueBRLNetDisplay}</td>
+      <td class="right mono muted">${taxesBRLDisplay}</td>
       <td class="right mono ${pnlClass}">${pnlDisplay}</td>
       <td class="right mono ${chgClass}">${chgDisplay}</td>
       <td>
@@ -1352,21 +1515,18 @@ function render(){
 
   el("metaInfo").textContent =
     market.errors.length ? `Avisos: ${market.errors.join(" | ")}` :
-    `Fontes: FX Frankfurter • BTC CoinGecko • B3 brapi.dev`;
+    `Fontes: FX Frankfurter • SELIC/CDI BCB (SGS) • BTC CoinGecko • B3 brapi.dev`;
 
   el("lastUpdated").textContent = market.lastUpdated ? new Date(market.lastUpdated).toLocaleString("pt-BR") : "—";
 
-  // histórico geral
   renderHistory();
-
-  // se já estiver em modo ativo e houver seleção, re-render do ativo
   if(selectedAssetId && isAssetMode()){
     renderAssetHistory(selectedAssetId);
   }
 }
 
 /* =========================
-   Edição individual por ativo (NOVO)
+   Edição individual por ativo
    ========================= */
 let editingAssetId = null;
 
@@ -1383,17 +1543,38 @@ function openEditAsset(assetId){
   el("editSub").textContent = `${asset.category} • ${asset.account} • Moeda: ${asset.currency}`;
 
   const isBalance = asset.mode==="manual_balance";
-  el("editQtyLabel").textContent = isBalance ? "Saldo (valor total)" : "Quantidade";
-  el("editQtyHint").textContent = isBalance
-    ? "Digite o saldo atual (na moeda do ativo)."
-    : "Digite a quantidade de unidades/cotas.";
-  el("editQty").value = String(asset.qty ?? 0);
+  const isLots = (asset.mode==="rf_selic" || asset.mode==="rf_cdi");
 
-  // avgCost só faz sentido quando não for manual_balance
-  el("editAvgCost").disabled = isBalance;
+  // Quantidade: só mostra para não-lotes
+  const qtyRow = el("qtyRow");
+  if(isLots){
+    qtyRow.style.display = "none";
+    el("editQty").value = "0";
+  }else{
+    qtyRow.style.display = "";
+    el("editQtyLabel").textContent = isBalance ? "Saldo (valor total)" : "Quantidade";
+    el("editQtyHint").textContent = isBalance
+      ? "Digite o saldo atual (na moeda do ativo)."
+      : "Digite a quantidade de unidades/cotas.";
+    el("editQty").value = String(asset.qty ?? 0);
+  }
+
+  // Lotes (renda fixa)
+  const lotsRow = el("lotsRow");
+  if(isLots){
+    lotsRow.style.display = "";
+    const lots = Array.isArray(asset.lots) ? asset.lots : [];
+    el("editLots").value = lots.map(x=>`${x.date} | ${x.amount}`).join("\n");
+  }else{
+    lotsRow.style.display = "none";
+    el("editLots").value = "";
+  }
+
+  // avgCost
+  el("editAvgCost").disabled = isBalance || isLots;
   el("editAvgCost").value = (asset.avgCost===null || asset.avgCost===undefined) ? "" : String(asset.avgCost);
 
-  // preço manual só quando for fund_manual
+  // preço manual
   const manualRow = el("manualPriceRow");
   if(asset.mode==="fund_manual"){
     manualRow.style.display = "";
@@ -1418,17 +1599,21 @@ function saveEditAsset(){
   const asset = state.assets.find(a=>a.id===editingAssetId);
   if(!asset){ toast("Ativo não encontrado."); return; }
 
-  const qty = Number(String(el("editQty").value||"").replace(",", "."));
-  if(!Number.isFinite(qty)){
-    toast("Quantidade/saldo inválido.");
-    return;
+  const isLots = (asset.mode==="rf_selic" || asset.mode==="rf_cdi");
+  const isBalance = asset.mode==="manual_balance";
+
+  // qty (apenas para não-lotes)
+  if(!isLots){
+    const qty = Number(String(el("editQty").value||"").replace(",", "."));
+    if(!Number.isFinite(qty)){
+      toast("Quantidade/saldo inválido.");
+      return;
+    }
+    asset.qty = qty;
   }
 
-  // aplica qty
-  asset.qty = qty;
-
-  // avgCost
-  if(asset.mode!=="manual_balance"){
+  // avgCost (apenas quando faz sentido)
+  if(!isBalance && !isLots){
     const rawAvg = String(el("editAvgCost").value||"").trim();
     if(rawAvg===""){
       asset.avgCost = null;
@@ -1459,6 +1644,22 @@ function saveEditAsset(){
     asset.notes = asset.notes ? (asset.notes + " • " + short) : short;
   }
 
+  // lotes
+  if(isLots){
+    const raw = String(el("editLots").value||"").trim();
+    const lines = raw ? raw.split("\n").map(l=>l.trim()).filter(Boolean) : [];
+    const newLots = [];
+    for(const line of lines){
+      const parts = line.split("|").map(p=>p.trim());
+      const d = normalizeDate(parts[0]);
+      const amt = Number(String(parts[1]||"").replace(",", "."));
+      if(!d || !Number.isFinite(amt) || amt<=0) continue;
+      newLots.push({ date:d, amount: amt });
+    }
+    newLots.sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+    asset.lots = newLots;
+  }
+
   saveState();
   render();
   toast("Investimento atualizado.");
@@ -1466,10 +1667,13 @@ function saveEditAsset(){
 }
 
 /* =========================
-   Edit modal legado (mantido)
+   Edit modal legado
    ========================= */
 async function editQuantities(){
   for(const a of state.assets){
+    // evita mexer em lotes via modo legado (para não confundir)
+    if(a.mode==="rf_selic" || a.mode==="rf_cdi") continue;
+
     const label = (a.mode==="manual_balance") ? "Saldo (valor total)" : "Quantidade";
     const v = prompt(`${a.name} (${a.account})\n${label} em ${a.currency}:`, String(a.qty ?? 0));
     if(v===null) return;
@@ -1535,7 +1739,7 @@ ATENÇÃO: use ponto no decimal (.)`;
 }
 
 /* =========================
-   Import/Export JSON (mantido)
+   Import/Export JSON
    ========================= */
 function exportJSON(){
   const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
@@ -1558,9 +1762,15 @@ function importJSON(){
     const txt = await file.text();
     try{
       const parsed = JSON.parse(txt);
+
+      const parsedAssets = Array.isArray(parsed.assets)
+        ? parsed.assets.filter(a => a && a.id !== "usd_cash")
+        : undefined;
+
       state = {
-        ...structuredClone(DEFAULT_DATA),
+        ...sClone(DEFAULT_DATA),
         ...parsed,
+        assets: parsedAssets ?? sClone(DEFAULT_DATA.assets),
         settings: { ...DEFAULT_DATA.settings, ...(parsed.settings||{}) },
         manualPrices: { ...DEFAULT_DATA.manualPrices, ...(parsed.manualPrices||{}) },
         history: Array.isArray(parsed.history) ? parsed.history : [],
@@ -1582,8 +1792,8 @@ function importJSON(){
 async function refreshAll(){
   market.errors = [];
   try{ await fetchFX(); }catch(e){ market.errors.push("FX indisponível"); }
+  try{ await fetchBRRates(); }catch(e){ market.errors.push("SELIC/CDI indisponível"); }
 
-  // ✅ COLOQUE AQUI (logo após o fetchFX)
   if(market.fx.USDBRL === null || market.fx.EURBRL === null){
     market.errors.push("Câmbio indisponível");
   }
@@ -1593,40 +1803,6 @@ async function refreshAll(){
 
   market.lastUpdated = Date.now();
   render();
-}
-
-/* =========================
-   Utils
-   ========================= */
-function escapeHtml(s){
-  return String(s ?? "").replace(/[&<>"']/g, (m)=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
-}
-
-/* =========================
-   Alternância: Histórico Carteira vs Ativo (UI clara)
-   ========================= */
-function isAssetMode(){
-  return el("assetHistoryCard").classList.contains("show");
-}
-function showHistoryMode(mode){
-  const portfolioCard = el("portfolioHistoryCard");
-  const assetCard = el("assetHistoryCard");
-  const p1 = el("modePortfolioBtn"), a1 = el("modeAssetBtn");
-  const p2 = el("modePortfolioBtn2"), a2 = el("modeAssetBtn2");
-
-  if(mode==="asset"){
-    portfolioCard.style.display = "none";
-    assetCard.classList.add("show");
-    p1.classList.remove("active"); a1.classList.add("active");
-    p2.classList.remove("active"); a2.classList.add("active");
-  }else{
-    portfolioCard.style.display = "";
-    assetCard.classList.remove("show");
-    p1.classList.add("active"); a1.classList.remove("active");
-    p2.classList.add("active"); a2.classList.remove("active");
-  }
 }
 
 /* =========================
@@ -1644,7 +1820,7 @@ el("resetBtn").addEventListener("click", ()=>{
   const ok = confirm("Tem certeza? Isso apaga os dados salvos no navegador.");
   if(!ok) return;
   localStorage.removeItem(STORAGE_KEY);
-  state = structuredClone(DEFAULT_DATA);
+  state = sClone(DEFAULT_DATA);
   saveState();
   render();
   toast("Resetado.");
@@ -1711,7 +1887,6 @@ el("saveAssetSnapshotBtn").addEventListener("click", ()=>{
 
   let val = Number(rawVal.replace(",", "."));
   if(!rawVal){
-    // se usuário não preencheu, usa valor atual calculado (nativo)
     const c = computeRow(asset);
     if(c.valueNative===null){
       toast("Não foi possível sugerir o valor atual. Preencha manualmente.");
@@ -1755,7 +1930,7 @@ document.addEventListener("keydown", (e)=>{
   if(e.key==="Escape" && el("assetEditOverlay").classList.contains("show")) closeEditAsset();
 });
 
-// Delegação de cliques na tabela (Ações + linha)
+// Delegação de cliques na tabela
 el("tbody").addEventListener("click", (e)=>{
   const btn = e.target.closest("button[data-action]");
   if(btn){
